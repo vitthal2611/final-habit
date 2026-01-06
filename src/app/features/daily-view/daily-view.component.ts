@@ -15,14 +15,21 @@ import { HabitCardModernComponent } from './habit-card/habit-card-modern.compone
         <p class="date">{{ today() | date:'EEEE, MMMM d' }}</p>
       </header>
 
-      <div class="habits-list">
+      <div class="loading" *ngIf="!habitService.isLoaded()">
+        <div class="spinner"></div>
+        <p>Loading habits...</p>
+      </div>
+
+      <div class="habits-list" *ngIf="habitService.isLoaded()">
         <app-habit-card-modern
           *ngFor="let habit of todayHabits()"
           [habit]="habit"
           [state]="getHabitState(habit.id)"
           [weeklyConsistency]="getWeeklyConsistency(habit.id)"
           [habitService]="habitService"
-          (complete)="onComplete(habit.id)">
+          (complete)="onComplete(habit.id)"
+          (edit)="onEdit($event)"
+          (delete)="onDelete($event)">
         </app-habit-card-modern>
 
         <div *ngIf="todayHabits().length === 0" class="empty-state">
@@ -44,22 +51,23 @@ import { HabitCardModernComponent } from './habit-card/habit-card-modern.compone
     .daily-view {
       max-width: 600px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 16px;
     }
 
     .header {
-      margin-bottom: 32px;
+      margin-bottom: 24px;
+      padding: 8px 0;
     }
 
     h1 {
-      font-size: 32px;
+      font-size: 28px;
       font-weight: 700;
       color: #111827;
       margin: 0 0 4px 0;
     }
 
     .date {
-      font-size: 16px;
+      font-size: 15px;
       color: #6b7280;
       margin: 0;
     }
@@ -67,42 +75,43 @@ import { HabitCardModernComponent } from './habit-card/habit-card-modern.compone
     .habits-list {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
     }
 
     .empty-state {
       text-align: center;
-      padding: 80px 20px;
+      padding: 60px 20px;
       background: white;
-      border-radius: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
 
     .empty-icon {
-      font-size: 64px;
-      margin-bottom: 24px;
+      font-size: 56px;
+      margin-bottom: 20px;
     }
 
     .empty-state h2 {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
       color: #111827;
-      margin: 0 0 12px 0;
+      margin: 0 0 8px 0;
     }
 
     .empty-text {
-      font-size: 16px;
+      font-size: 15px;
       color: #6b7280;
-      margin: 0 0 32px 0;
+      margin: 0 0 24px 0;
+      line-height: 1.5;
     }
 
     .create-btn {
-      padding: 14px 28px;
+      padding: 14px 24px;
       background: #6366f1;
       color: white;
       border: none;
       border-radius: 12px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
@@ -110,12 +119,97 @@ import { HabitCardModernComponent } from './habit-card/habit-card-modern.compone
       cursor: pointer;
       transition: all 0.2s;
       box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .create-btn:active {
+      transform: scale(0.95);
     }
 
     .create-btn:hover {
       background: #4f46e5;
-      transform: translateY(-2px);
       box-shadow: 0 6px 16px rgba(99,102,241,0.4);
+    }
+
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading p {
+      color: #6b7280;
+      font-size: 14px;
+      margin: 0;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    @media (min-width: 768px) {
+      .daily-view {
+        padding: 24px;
+      }
+
+      .header {
+        margin-bottom: 32px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+
+      .date {
+        font-size: 16px;
+      }
+
+      .habits-list {
+        gap: 16px;
+      }
+
+      .empty-state {
+        padding: 80px 20px;
+        border-radius: 20px;
+      }
+
+      .empty-icon {
+        font-size: 64px;
+        margin-bottom: 24px;
+      }
+
+      .empty-state h2 {
+        font-size: 24px;
+        margin: 0 0 12px 0;
+      }
+
+      .empty-text {
+        font-size: 16px;
+        margin: 0 0 32px 0;
+      }
+
+      .create-btn {
+        padding: 14px 28px;
+        font-size: 16px;
+      }
     }
   `]
 })
@@ -124,9 +218,12 @@ export class DailyViewComponent {
   
   todayHabits = computed(() => {
     const dayOfWeek = this.today().getDay();
+    const dateStr = this.formatDate(this.today());
     return this.habitService.allHabits().filter(habit => {
-      if (habit.frequency === 'daily') return true;
-      return Array.isArray(habit.frequency) && habit.frequency.includes(dayOfWeek);
+      const isScheduledToday = habit.frequency === 'daily' || 
+        (Array.isArray(habit.frequency) && habit.frequency.includes(dayOfWeek));
+      const state = this.habitService.getHabitState(habit.id, dateStr);
+      return isScheduledToday && state !== 'done';
     });
   });
 
@@ -153,6 +250,14 @@ export class DailyViewComponent {
 
   onComplete(habitId: string) {
     this.habitService.logHabit(habitId, this.formatDate(this.today()), true);
+  }
+
+  onEdit(habitId: string) {
+    this.router.navigate(['/create'], { queryParams: { id: habitId } });
+  }
+
+  onDelete(habitId: string) {
+    this.habitService.deleteHabit(habitId);
   }
 
   onNoteChange(habitId: string, note: string) {

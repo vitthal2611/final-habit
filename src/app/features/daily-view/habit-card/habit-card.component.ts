@@ -17,6 +17,20 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
         <div class="identity-badge">
           <span class="identity-text">{{ habit.identity }}</span>
         </div>
+        <div class="card-actions">
+          <button class="icon-action" (click)="onEdit()" type="button" title="Edit habit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button class="icon-action delete" (click)="onDelete()" type="button" title="Delete habit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- Habit Name -->
@@ -166,12 +180,12 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
   styles: [`
     .habit-card {
       background: white;
-      border-radius: 20px;
-      padding: 24px;
-      margin-bottom: 16px;
+      border-radius: 16px;
+      padding: 18px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       border-left: 4px solid var(--habit-color);
       transition: transform 0.2s, box-shadow 0.2s;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .habit-card:active {
@@ -180,21 +194,55 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
 
     .card-header {
       display: flex;
-      justify-content: center;
-      margin-bottom: 16px;
-      padding-bottom: 16px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
       border-bottom: 1px solid #f3f4f6;
     }
 
     .identity-badge {
       display: inline-block;
-      padding: 6px 14px;
+      padding: 6px 12px;
       background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
-      border-radius: 20px;
+      border-radius: 16px;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .icon-action {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: #f3f4f6;
+      color: #6b7280;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .icon-action:active {
+      transform: scale(0.9);
+      background: #e5e7eb;
+    }
+
+    .icon-action.delete {
+      color: #ef4444;
+    }
+
+    .icon-action.delete:active {
+      background: #fee2e2;
     }
 
     .identity-text {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: #6366f1;
       text-transform: uppercase;
@@ -202,29 +250,29 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     }
 
     .habit-name {
-      font-size: 22px;
+      font-size: 19px;
       font-weight: 700;
       color: #111827;
-      margin: 0 0 8px 0;
+      margin: 0 0 6px 0;
       line-height: 1.3;
     }
 
     .trigger-text {
-      font-size: 14px;
+      font-size: 13px;
       color: #6b7280;
-      margin: 0 0 16px 0;
+      margin: 0 0 12px 0;
     }
 
     .cue-hint {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
+      gap: 6px;
+      padding: 8px 12px;
       background: #fef3c7;
-      border-radius: 12px;
-      font-size: 13px;
+      border-radius: 10px;
+      font-size: 12px;
       color: #92400e;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
     .cue-hint svg {
@@ -233,36 +281,38 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
 
     .primary-action {
       width: 100%;
-      padding: 16px;
+      padding: 14px;
       background: var(--habit-color);
       color: white;
       border: none;
-      border-radius: 14px;
-      font-size: 16px;
+      border-radius: 12px;
+      font-size: 15px;
       font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
       cursor: pointer;
       transition: all 0.2s;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      margin-bottom: 16px;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 48px;
     }
 
     .primary-action:active {
-      transform: translateY(1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transform: scale(0.97);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
     }
 
     .completed-state {
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 16px;
+      gap: 12px;
+      padding: 14px;
       background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-      border-radius: 14px;
-      margin-bottom: 20px;
+      border-radius: 12px;
+      margin-bottom: 16px;
     }
 
     .completed-state svg {
@@ -271,56 +321,56 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     }
 
     .completed-text {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       color: #065f46;
       margin-bottom: 2px;
     }
 
     .completed-sub {
-      font-size: 13px;
+      font-size: 12px;
       color: #047857;
     }
 
     .neutral-state {
-      padding: 14px;
+      padding: 12px;
       text-align: center;
       background: #f9fafb;
-      border-radius: 12px;
-      font-size: 14px;
+      border-radius: 10px;
+      font-size: 13px;
       color: #9ca3af;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
     .weekly-progress {
-      padding: 16px;
+      padding: 14px;
       background: #fafafa;
-      border-radius: 14px;
-      margin-bottom: 16px;
+      border-radius: 12px;
+      margin-bottom: 12px;
     }
 
     .progress-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .progress-label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: #6b7280;
     }
 
     .progress-count {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: var(--habit-color);
     }
 
     .progress-dots {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       justify-content: space-between;
     }
 
@@ -343,17 +393,19 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
 
     .expand-toggle {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       background: transparent;
       border: none;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: #6b7280;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
     }
 
     .expand-toggle svg {
@@ -365,31 +417,31 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     }
 
     .advanced-panel {
-      padding: 16px 0 0 0;
+      padding: 12px 0 0 0;
       border-top: 1px solid #f3f4f6;
-      margin-top: 12px;
+      margin-top: 8px;
     }
 
     .week-visual {
-      padding: 16px;
+      padding: 14px;
       background: #fafafa;
       border-radius: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .week-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      font-size: 13px;
+      margin-bottom: 10px;
+      font-size: 12px;
       font-weight: 600;
       color: #374151;
     }
 
     .week-score {
       color: #f59e0b;
-      font-size: 12px;
+      font-size: 11px;
     }
 
     .week-score.perfect {
@@ -399,7 +451,7 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     .week-dots {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
+      gap: 6px;
     }
 
     .day-item {
@@ -407,16 +459,16 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     }
 
     .day-label {
-      font-size: 10px;
+      font-size: 9px;
       color: #9ca3af;
       font-weight: 600;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       text-transform: uppercase;
     }
 
     .day-circle {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       border: 2px solid #e5e7eb;
       margin: 0 auto;
@@ -438,25 +490,25 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     .zone-section,
     .contract-section,
     .reflection-section {
-      margin-bottom: 12px;
-      padding: 14px;
+      margin-bottom: 10px;
+      padding: 12px;
       background: #fafafa;
-      border-radius: 12px;
+      border-radius: 10px;
     }
 
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: #374151;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .icon-btn {
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       border-radius: 6px;
       border: none;
       background: var(--habit-color);
@@ -465,12 +517,13 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
       display: flex;
       align-items: center;
       justify-content: center;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .milestone-info {
-      font-size: 13px;
+      font-size: 12px;
       color: #6b7280;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .progress-bar {
@@ -489,19 +542,20 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     .milestone-input {
       display: flex;
       gap: 8px;
-      margin-top: 10px;
+      margin-top: 8px;
     }
 
     .milestone-input input {
       flex: 1;
-      padding: 8px 12px;
+      padding: 10px 12px;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       font-size: 14px;
+      min-height: 44px;
     }
 
     .btn-save {
-      padding: 8px 16px;
+      padding: 10px 16px;
       background: var(--habit-color);
       color: white;
       border: none;
@@ -509,6 +563,8 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
     }
 
     .zone-status {
@@ -518,7 +574,7 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
       padding: 10px 12px;
       background: #fef3c7;
       border-radius: 10px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: #92400e;
     }
@@ -533,13 +589,13 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     }
 
     .contract-text {
-      font-size: 13px;
+      font-size: 12px;
       color: #6b7280;
       margin-bottom: 6px;
     }
 
     .contract-partner {
-      font-size: 12px;
+      font-size: 11px;
       color: #991b1b;
       font-weight: 500;
     }
@@ -553,36 +609,216 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
       color: #6b7280;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
     }
 
     textarea {
       width: 100%;
-      margin-top: 10px;
+      margin-top: 8px;
       padding: 12px;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       font-size: 14px;
       font-family: inherit;
       resize: vertical;
+      min-height: 80px;
     }
 
-    @media (max-width: 640px) {
+    @media (min-width: 768px) {
       .habit-card {
-        padding: 20px;
-        border-radius: 16px;
+        border-radius: 20px;
+        padding: 24px;
+      }
+
+      .card-header {
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+      }
+
+      .icon-action:hover {
+        background: #e5e7eb;
+      }
+
+      .icon-action.delete:hover {
+        background: #fee2e2;
+      }
+
+      .identity-badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+      }
+
+      .identity-text {
+        font-size: 12px;
       }
 
       .habit-name {
-        font-size: 20px;
+        font-size: 22px;
+        margin: 0 0 8px 0;
+      }
+
+      .trigger-text {
+        font-size: 14px;
+        margin: 0 0 16px 0;
+      }
+
+      .cue-hint {
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 13px;
+        margin-bottom: 20px;
       }
 
       .primary-action {
-        padding: 14px;
+        padding: 16px;
+        font-size: 16px;
+        gap: 10px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+      }
+
+      .completed-state {
+        gap: 14px;
+        padding: 16px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+      }
+
+      .completed-text {
         font-size: 15px;
+      }
+
+      .completed-sub {
+        font-size: 13px;
+      }
+
+      .neutral-state {
+        padding: 14px;
+        border-radius: 12px;
+        font-size: 14px;
+        margin-bottom: 20px;
+      }
+
+      .weekly-progress {
+        padding: 16px;
+        border-radius: 14px;
+        margin-bottom: 16px;
+      }
+
+      .progress-header {
+        margin-bottom: 12px;
+      }
+
+      .progress-label {
+        font-size: 13px;
+      }
+
+      .progress-count {
+        font-size: 16px;
+      }
+
+      .progress-dots {
+        gap: 8px;
+      }
+
+      .expand-toggle {
+        padding: 12px;
+        font-size: 13px;
+      }
+
+      .advanced-panel {
+        padding: 16px 0 0 0;
+        margin-top: 12px;
+      }
+
+      .week-visual {
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+
+      .week-header {
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+
+      .week-score {
+        font-size: 12px;
+      }
+
+      .week-dots {
+        gap: 8px;
+      }
+
+      .day-label {
+        font-size: 10px;
+        margin-bottom: 6px;
+      }
+
+      .day-circle {
+        width: 36px;
+        height: 36px;
+      }
+
+      .milestone-section,
+      .zone-section,
+      .contract-section,
+      .reflection-section {
+        margin-bottom: 12px;
+        padding: 14px;
+        border-radius: 12px;
+      }
+
+      .section-header {
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      .icon-btn {
+        width: 26px;
+        height: 26px;
+      }
+
+      .milestone-info {
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .milestone-input {
+        margin-top: 10px;
+      }
+
+      .milestone-input input {
+        padding: 8px 12px;
+      }
+
+      .btn-save {
+        padding: 8px 16px;
+      }
+
+      .zone-status {
+        font-size: 13px;
+      }
+
+      .contract-text {
+        font-size: 13px;
+      }
+
+      .contract-partner {
+        font-size: 12px;
+      }
+
+      .section-toggle {
+        font-size: 13px;
+      }
+
+      textarea {
+        margin-top: 10px;
       }
     }
   `]
@@ -597,6 +833,8 @@ export class HabitCardComponent implements OnInit {
   @Output() complete = new EventEmitter<void>();
   @Output() noteChange = new EventEmitter<string>();
   @Output() milestoneAdd = new EventEmitter<number>();
+  @Output() edit = new EventEmitter<string>();
+  @Output() delete = new EventEmitter<string>();
 
   showReflection = signal(false);
   showMilestoneInput = signal(false);
@@ -723,5 +961,15 @@ export class HabitCardComponent implements OnInit {
   isInGoldilocksZone(): boolean {
     const rate = this.getConsistencyRate();
     return rate >= 50 && rate <= 85;
+  }
+
+  onEdit() {
+    this.edit.emit(this.habit.id);
+  }
+
+  onDelete() {
+    if (confirm(`Delete "${this.habit.name}"? This cannot be undone.`)) {
+      this.delete.emit(this.habit.id);
+    }
   }
 }

@@ -1,7 +1,7 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { HabitService } from '../../core/services/habit.service';
 import { Habit } from '../../core/models/habit.model';
 import { ButtonComponent } from '../../shared/ui/button.component';
@@ -14,7 +14,7 @@ import { CardComponent } from '../../shared/ui/card.component';
   template: `
     <div class="creation-flow">
       <header>
-        <h1>Create a New Habit</h1>
+        <h1>{{ editMode() ? 'Edit Habit' : 'Create a New Habit' }}</h1>
         <p class="subtitle">Small actions, big identity shifts</p>
       </header>
 
@@ -22,12 +22,45 @@ import { CardComponent } from '../../shared/ui/card.component';
         <form (ngSubmit)="onSubmit()">
           
           <div class="form-group">
+            <label>When?</label>
+            <input 
+              type="text" 
+              [(ngModel)]="form.when" 
+              name="when"
+              list="whenList"
+              placeholder="e.g., After I wake up"
+              required>
+            <datalist id="whenList">
+              <option *ngFor="let trigger of uniqueTriggers()" [value]="trigger">
+            </datalist>
+          </div>
+
+          <div class="form-group">
             <label>What will you do?</label>
             <input 
               type="text" 
               [(ngModel)]="form.name" 
               name="name"
               placeholder="e.g., Drink a glass of water"
+              required>
+          </div>
+
+          <div class="form-group">
+            <label>Time</label>
+            <input 
+              type="time" 
+              [(ngModel)]="form.time" 
+              name="time"
+              required>
+          </div>
+
+          <div class="form-group">
+            <label>Where?</label>
+            <input 
+              type="text" 
+              [(ngModel)]="form.where" 
+              name="where"
+              placeholder="In the kitchen"
               required>
           </div>
 
@@ -45,43 +78,8 @@ import { CardComponent } from '../../shared/ui/card.component';
             </datalist>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>When?</label>
-              <input 
-                type="text" 
-                [(ngModel)]="form.when" 
-                name="when"
-                list="whenList"
-                placeholder="e.g., After I wake up"
-                required>
-              <datalist id="whenList">
-                <option *ngFor="let trigger of uniqueTriggers()" [value]="trigger">
-              </datalist>
-            </div>
-
-            <div class="form-group">
-              <label>Time</label>
-              <input 
-                type="time" 
-                [(ngModel)]="form.time" 
-                name="time"
-                required>
-            </div>
-          </div>
-
           <div class="form-group">
-            <label>Where?</label>
-            <input 
-              type="text" 
-              [(ngModel)]="form.where" 
-              name="where"
-              placeholder="In the kitchen"
-              required>
-          </div>
-
-          <div class="form-group">
-            <label>What's your cue?</label>
+            <label>Environment design</label>
             <input 
               type="text" 
               [(ngModel)]="form.cue" 
@@ -147,7 +145,7 @@ import { CardComponent } from '../../shared/ui/card.component';
 
           <div class="actions">
             <app-button type="submit" variant="primary">
-              Create Habit
+              {{ editMode() ? 'Update Habit' : 'Create Habit' }}
             </app-button>
           </div>
         </form>
@@ -158,15 +156,15 @@ import { CardComponent } from '../../shared/ui/card.component';
     .creation-flow {
       max-width: 600px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 16px;
     }
 
     header {
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     h1 {
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 700;
       color: #111827;
       margin: 0 0 4px 0;
@@ -179,13 +177,13 @@ import { CardComponent } from '../../shared/ui/card.component';
     }
 
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
 
     .form-row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      grid-template-columns: 1fr;
+      gap: 18px;
     }
 
     label {
@@ -200,60 +198,76 @@ import { CardComponent } from '../../shared/ui/card.component';
     input[type="time"],
     select {
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       border: 1px solid #d1d5db;
-      border-radius: 6px;
-      font-size: 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      min-height: 48px;
+      -webkit-appearance: none;
     }
 
     input:focus,
     select:focus {
       outline: none;
       border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
     }
 
     .days-selector {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
     }
 
     .day-checkbox {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       font-size: 14px;
       cursor: pointer;
+      padding: 8px 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .day-checkbox input {
+      width: 18px;
+      height: 18px;
+      min-height: auto;
     }
 
     .color-picker {
       display: flex;
       gap: 12px;
+      flex-wrap: wrap;
     }
 
     .color-option {
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       border: 3px solid transparent;
       cursor: pointer;
       transition: transform 0.2s;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .color-option:hover {
-      transform: scale(1.1);
+    .color-option:active {
+      transform: scale(0.9);
     }
 
     .color-option.selected {
       border-color: #111827;
+      transform: scale(1.1);
     }
 
     .actions {
-      margin-top: 32px;
+      margin-top: 24px;
     }
 
     .milestone-section {
-      padding-top: 20px;
+      padding-top: 18px;
       border-top: 1px solid #e5e7eb;
     }
 
@@ -262,17 +276,20 @@ import { CardComponent } from '../../shared/ui/card.component';
       align-items: center;
       gap: 8px;
       cursor: pointer;
+      min-height: 44px;
     }
 
     .milestone-section input[type="checkbox"] {
-      width: auto;
+      width: 20px;
+      height: 20px;
+      min-height: auto;
     }
 
     .milestone-inputs {
       margin-top: 16px;
       padding: 16px;
       background: #f9fafb;
-      border-radius: 6px;
+      border-radius: 8px;
     }
 
     .hint {
@@ -283,7 +300,7 @@ import { CardComponent } from '../../shared/ui/card.component';
     }
 
     .contract-section {
-      padding-top: 20px;
+      padding-top: 18px;
       border-top: 1px solid #e5e7eb;
     }
 
@@ -292,22 +309,76 @@ import { CardComponent } from '../../shared/ui/card.component';
       align-items: center;
       gap: 8px;
       cursor: pointer;
+      min-height: 44px;
     }
 
     .contract-section input[type="checkbox"] {
-      width: auto;
+      width: 20px;
+      height: 20px;
+      min-height: auto;
     }
 
     .contract-inputs {
       margin-top: 16px;
       padding: 16px;
       background: #fef2f2;
-      border-radius: 6px;
+      border-radius: 8px;
       border-left: 3px solid #ef4444;
+    }
+
+    @media (min-width: 768px) {
+      .creation-flow {
+        padding: 24px;
+      }
+
+      header {
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      input[type="text"],
+      input[type="time"],
+      select {
+        padding: 10px;
+        font-size: 15px;
+        min-height: auto;
+      }
+
+      .color-option {
+        width: 40px;
+        height: 40px;
+      }
+
+      .actions {
+        margin-top: 32px;
+      }
+
+      .milestone-section {
+        padding-top: 20px;
+      }
+
+      .contract-section {
+        padding-top: 20px;
+      }
     }
   `]
 })
-export class HabitCreationComponent {
+export class HabitCreationComponent implements OnInit {
+  editMode = signal(false);
+  habitId = signal<string | null>(null);
+  
   form = {
     name: '',
     identity: '',
@@ -340,8 +411,40 @@ export class HabitCreationComponent {
 
   constructor(
     private habitService: HabitService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
+
+  ngOnInit() {
+    const id = this.route.snapshot.queryParamMap.get('id');
+    if (id) {
+      const habit = this.habitService.getHabitById(id);
+      if (habit) {
+        this.editMode.set(true);
+        this.habitId.set(id);
+        this.loadHabitData(habit);
+      }
+    }
+  }
+
+  loadHabitData(habit: Habit) {
+    this.form.name = habit.name;
+    this.form.identity = habit.identity;
+    this.form.when = habit.trigger.when;
+    this.form.time = habit.time;
+    this.form.where = habit.trigger.where;
+    this.form.cue = habit.cue;
+    this.form.twoMinuteRule = habit.twoMinuteRule || '';
+    this.form.color = habit.color;
+    this.form.difficulty = habit.difficulty || 'tiny';
+    
+    if (Array.isArray(habit.frequency)) {
+      this.form.frequency = 'custom';
+      this.selectedDays.set(habit.frequency);
+    } else {
+      this.form.frequency = 'daily';
+    }
+  }
 
   toggleDay(day: number) {
     const current = this.selectedDays();
@@ -354,7 +457,7 @@ export class HabitCreationComponent {
 
   onSubmit() {
     const habit: Habit = {
-      id: self.crypto.randomUUID(),
+      id: this.editMode() ? this.habitId()! : self.crypto.randomUUID(),
       name: this.form.name,
       identity: this.form.identity,
       trigger: {
@@ -367,11 +470,16 @@ export class HabitCreationComponent {
       twoMinuteRule: this.form.twoMinuteRule || undefined,
       frequency: this.form.frequency === 'daily' ? 'daily' : this.selectedDays(),
       color: this.form.color,
-      createdAt: new Date(),
+      createdAt: this.editMode() ? this.habitService.getHabitById(this.habitId()!)!.createdAt : new Date(),
       difficulty: this.form.difficulty as 'tiny' | 'easy' | 'moderate'
     };
 
-    this.habitService.addHabit(habit);
+    if (this.editMode()) {
+      this.habitService.updateHabit(habit);
+    } else {
+      this.habitService.addHabit(habit);
+    }
+    
     this.router.navigate(['/']);
   }
 }

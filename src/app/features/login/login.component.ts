@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseService } from '../../core/services/firebase.service';
 import { Router } from '@angular/router';
@@ -32,19 +32,22 @@ import { Router } from '@angular/router';
   styles: [`
     .login-container {
       min-height: 100vh;
+      min-height: -webkit-fill-available;
       display: flex;
       align-items: center;
       justify-content: center;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
     }
 
     .login-card {
       background: white;
-      padding: 48px;
+      padding: 40px 24px;
       border-radius: 20px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
       text-align: center;
       max-width: 400px;
+      width: 100%;
       animation: slideUp 0.5s ease-out;
     }
 
@@ -65,16 +68,18 @@ import { Router } from '@angular/router';
     }
 
     h1 {
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 700;
       color: #111827;
       margin: 0 0 8px 0;
+      line-height: 1.2;
     }
 
     .subtitle {
-      font-size: 16px;
+      font-size: 15px;
       color: #6b7280;
       margin: 0 0 32px 0;
+      line-height: 1.4;
     }
 
     .google-btn {
@@ -83,7 +88,7 @@ import { Router } from '@angular/router';
       background: white;
       border: 2px solid #e5e7eb;
       border-radius: 12px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       color: #374151;
       display: flex;
@@ -92,13 +97,13 @@ import { Router } from '@angular/router';
       gap: 12px;
       cursor: pointer;
       transition: all 0.2s;
+      min-height: 52px;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .google-btn:hover:not(:disabled) {
+    .google-btn:active:not(:disabled) {
+      transform: scale(0.97);
       background: #f9fafb;
-      border-color: #d1d5db;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
     .google-btn:disabled {
@@ -127,6 +132,31 @@ import { Router } from '@angular/router';
       border-radius: 8px;
       font-size: 14px;
     }
+
+    @media (min-width: 768px) {
+      .login-card {
+        padding: 48px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .subtitle {
+        font-size: 16px;
+      }
+
+      .google-btn {
+        font-size: 16px;
+      }
+
+      .google-btn:hover:not(:disabled) {
+        background: #f9fafb;
+        border-color: #d1d5db;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+    }
   `]
 })
 export class LoginComponent {
@@ -136,16 +166,25 @@ export class LoginComponent {
   constructor(
     private firebase: FirebaseService,
     private router: Router
-  ) {}
+  ) {
+    // Auto-navigate when user is authenticated after redirect
+    effect(() => {
+      if (this.firebase.currentUser() && !this.firebase.authLoading()) {
+        this.router.navigate(['/']);
+      }
+    });
+  }
 
   async signIn() {
     this.loading = true;
     this.error = '';
     try {
       await this.firebase.signInWithGoogle();
-      this.router.navigate(['/']);
+      // Navigation handled by constructor subscription
     } catch (error: any) {
-      this.error = error.message || 'Failed to sign in. Please try again.';
+      if (error.code !== 'auth/popup-blocked' && error.code !== 'auth/cancelled-popup-request') {
+        this.error = error.message || 'Failed to sign in. Please try again.';
+      }
       this.loading = false;
     }
   }

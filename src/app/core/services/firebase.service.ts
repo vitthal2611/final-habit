@@ -1,20 +1,11 @@
 import { Injectable, signal } from '@angular/core';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, onValue, get } from 'firebase/database';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { Habit, HabitLog } from '../models/habit.model';
+import { environment } from '../../../environments/environment';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCcGMIKGZlWqvOUM1-mjFHIIT-WvKktl_0",
-  authDomain: "habit-tracker-86281.firebaseapp.com",
-  databaseURL: "https://habit-tracker-86281.firebaseio.com/",
-  projectId: "habit-tracker-86281",
-  storageBucket: "habit-tracker-86281.firebasestorage.app",
-  messagingSenderId: "325420672462",
-  appId: "1:325420672462:web:8df0ee22fe8b496356779f"
-};
-
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(environment.firebase);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
@@ -26,6 +17,29 @@ export class FirebaseService {
   authLoading = signal<boolean>(true);
 
   constructor() {
+    // Suppress Firebase Auth UI errors
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    console.error = (...args: any[]) => {
+      const msg = args[0]?.toString() || '';
+      if (msg.includes('MDL') || msg.includes('handler.js') || msg.includes('Cross-Origin')) return;
+      originalError.apply(console, args);
+    };
+    
+    console.warn = (...args: any[]) => {
+      const msg = args[0]?.toString() || '';
+      if (msg.includes('Cross-Origin') || msg.includes('window.closed')) return;
+      originalWarn.apply(console, args);
+    };
+    
+    // Check for redirect result first
+    getRedirectResult(auth).catch((error) => {
+      if (error.code !== 'auth/popup-blocked') {
+        console.error('Redirect result error:', error);
+      }
+    });
+    
     onAuthStateChanged(auth, (user) => {
       this.currentUser.set(user);
       this.authLoading.set(false);
@@ -34,7 +48,16 @@ export class FirebaseService {
 
   async signInWithGoogle(): Promise<void> {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      // Fallback to redirect if popup is blocked
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw error;
+      }
+    }
   }
 
   async signOut(): Promise<void> {
@@ -66,15 +89,41 @@ export class FirebaseService {
   }
 
   async getHabits(): Promise<Habit[]> {
-    const habitsRef = ref(database, this.getUserPath('habits'));
-    const snapshot = await get(habitsRef);
-    return snapshot.exists() ? snapshot.val() : [];
+    if (!this.currentUser()) return [];
+    try {
+      const startTime = performance.now();
+      const habitsRef = ref(database, this.getUserPath('habits'));
+      const snapshot = await get(habitsRef);
+      const endTime = performance.now();
+      
+      if (endTime - startTime > 1000) {
+        console.warn(`Slow habits fetch: ${Math.round(endTime - startTime)}ms`);
+      }
+      
+      return snapshot.exists() ? snapshot.val() : [];
+    } catch (error) {
+      console.error('Error loading habits:', error);
+      return [];
+    }
   }
 
   async getLogs(): Promise<HabitLog[]> {
-    const logsRef = ref(database, this.getUserPath('logs'));
-    const snapshot = await get(logsRef);
-    return snapshot.exists() ? snapshot.val() : [];
+    if (!this.currentUser()) return [];
+    try {
+      const startTime = performance.now();
+      const logsRef = ref(database, this.getUserPath('logs'));
+      const snapshot = await get(logsRef);
+      const endTime = performance.now();
+      
+      if (endTime - startTime > 1000) {
+        console.warn(`Slow logs fetch: ${Math.round(endTime - startTime)}ms`);
+      }
+      
+      return snapshot.exists() ? snapshot.val() : [];
+    } catch (error) {
+      console.error('Error loading logs:', error);
+      return [];
+    }
   }
 
   onHabitsChange(callback: (habits: Habit[]) => void): void {

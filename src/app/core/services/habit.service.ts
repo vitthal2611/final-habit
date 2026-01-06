@@ -8,19 +8,59 @@ import { FirebaseService } from './firebase.service';
 export class HabitService {
   private habits = signal<Habit[]>([]);
   private logs = signal<HabitLog[]>([]);
+  private loaded = signal<boolean>(false);
 
   readonly allHabits = this.habits.asReadonly();
   readonly allLogs = this.logs.asReadonly();
+  readonly isLoaded = this.loaded.asReadonly();
 
   constructor(private firebase: FirebaseService) {
-    this.firebase.onHabitsChange((habits) => this.habits.set(habits));
-    this.firebase.onLogsChange((logs) => this.logs.set(logs));
+    this.loadInitialData();
+  }
+
+  private async loadInitialData() {
+    try {
+      const [habits, logs] = await Promise.all([
+        this.firebase.getHabits(),
+        this.firebase.getLogs()
+      ]);
+      this.habits.set(habits);
+      this.logs.set(logs);
+      this.loaded.set(true);
+      
+      // Setup real-time listeners after initial load
+      this.firebase.onHabitsChange((habits) => this.habits.set(habits));
+      this.firebase.onLogsChange((logs) => this.logs.set(logs));
+    } catch (error) {
+      console.error('Failed to load habits:', error);
+      this.loaded.set(true);
+    }
   }
 
   addHabit(habit: Habit): void {
     const updated = [...this.habits(), habit];
     this.habits.set(updated);
     this.firebase.saveHabits(updated);
+  }
+
+  updateHabit(habit: Habit): void {
+    const updated = this.habits().map(h => h.id === habit.id ? habit : h);
+    this.habits.set(updated);
+    this.firebase.saveHabits(updated);
+  }
+
+  deleteHabit(habitId: string): void {
+    const updated = this.habits().filter(h => h.id !== habitId);
+    this.habits.set(updated);
+    this.firebase.saveHabits(updated);
+    // Also delete associated logs
+    const updatedLogs = this.logs().filter(l => l.habitId !== habitId);
+    this.logs.set(updatedLogs);
+    this.firebase.saveLogs(updatedLogs);
+  }
+
+  getHabitById(id: string): Habit | undefined {
+    return this.habits().find(h => h.id === id);
   }
 
   logHabit(habitId: string, date: string, completed: boolean, note?: string, milestoneCount?: number): void {

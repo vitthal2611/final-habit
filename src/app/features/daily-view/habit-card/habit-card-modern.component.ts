@@ -9,10 +9,26 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
   template: `
     <div class="card" [style.--color]="habit.color">
       
-      <div class="badge">
-        <span class="icon">✨</span>
-        <span>{{ habit.identity }}</span>
-        <span class="vote-count">{{ getVoteCount() }} votes</span>
+      <div class="header">
+        <div class="badge">
+          <span class="icon">✨</span>
+          <span>{{ habit.identity }}</span>
+          <span class="vote-count">{{ getVoteCount() }} votes</span>
+        </div>
+        <div class="actions">
+          <button class="action-btn" (click)="onEdit()" type="button" title="Edit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button class="action-btn delete" (click)="onDelete()" type="button" title="Delete">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="grid">
@@ -87,6 +103,46 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
       border-left: 4px solid var(--color);
     }
 
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: #f3f4f6;
+      color: #6b7280;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .action-btn:active {
+      transform: scale(0.9);
+      background: #e5e7eb;
+    }
+
+    .action-btn.delete {
+      color: #ef4444;
+    }
+
+    .action-btn.delete:active {
+      background: #fee2e2;
+    }
+
     .badge {
       display: inline-flex;
       align-items: center;
@@ -99,7 +155,6 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
       color: #6366f1;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 20px;
     }
 
     .vote-count {
@@ -304,6 +359,16 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
       color: #7f1d1d;
       line-height: 1.5;
     }
+
+    @media (min-width: 768px) {
+      .action-btn:hover {
+        background: #e5e7eb;
+      }
+
+      .action-btn.delete:hover {
+        background: #fee2e2;
+      }
+    }
   `]
 })
 export class HabitCardModernComponent {
@@ -313,6 +378,8 @@ export class HabitCardModernComponent {
   @Input() habitService: any;
   
   @Output() complete = new EventEmitter<void>();
+  @Output() edit = new EventEmitter<string>();
+  @Output() delete = new EventEmitter<string>();
 
   getVoteCount(): number {
     if (!this.habitService) return 0;
@@ -327,5 +394,15 @@ export class HabitCardModernComponent {
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split('T')[0];
     return this.habitService.getHabitState(this.habit.id, dateStr) === 'missed';
+  }
+
+  onEdit() {
+    this.edit.emit(this.habit.id);
+  }
+
+  onDelete() {
+    if (confirm(`Delete "${this.habit.name}"? This cannot be undone.`)) {
+      this.delete.emit(this.habit.id);
+    }
   }
 }

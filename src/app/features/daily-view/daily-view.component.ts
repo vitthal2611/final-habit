@@ -219,12 +219,14 @@ export class DailyViewComponent {
   todayHabits = computed(() => {
     const dayOfWeek = this.today().getDay();
     const dateStr = this.formatDate(this.today());
-    return this.habitService.allHabits().filter(habit => {
-      const isScheduledToday = habit.frequency === 'daily' || 
-        (Array.isArray(habit.frequency) && habit.frequency.includes(dayOfWeek));
-      const state = this.habitService.getHabitState(habit.id, dateStr);
-      return isScheduledToday && state !== 'done';
-    });
+    return this.habitService.allHabits()
+      .filter(habit => {
+        const isScheduledToday = habit.frequency === 'daily' || 
+          (Array.isArray(habit.frequency) && habit.frequency.includes(dayOfWeek));
+        const state = this.habitService.getHabitState(habit.id, dateStr);
+        return isScheduledToday && state !== 'done';
+      })
+      .sort((a, b) => a.time.localeCompare(b.time));
   });
 
   constructor(public habitService: HabitService, private router: Router) {}

@@ -1,14 +1,15 @@
-import { Component, Input, Output, EventEmitter, signal, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Habit, HabitState } from '../../../core/models/habit.model';
 import { CardComponent } from '../../../shared/ui/card.component';
 import { ButtonComponent } from '../../../shared/ui/button.component';
+import { ConfirmModalComponent } from '../../../shared/ui/confirm-modal.component';
 
 @Component({
   selector: 'app-habit-card',
   standalone: true,
-  imports: [CommonModule, FormsModule, CardComponent, ButtonComponent],
+  imports: [CommonModule, FormsModule, CardComponent, ButtonComponent, ConfirmModalComponent],
   template: `
     <div class="habit-card" [style.--habit-color]="habit.color">
       
@@ -50,12 +51,26 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
       </div>
 
       <!-- Primary Action -->
-      <button class="primary-action" *ngIf="state === 'pending'" (click)="onComplete()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        I showed up today
-      </button>
+      <div *ngIf="state === 'pending'">
+        <div class="progress-input-card" *ngIf="habit.milestone && !progressLogged()">
+          <div class="progress-input-header">
+            <span>How many {{ habit.milestone.unit }} today?</span>
+          </div>
+          <div class="progress-input-row">
+            <input type="number" [(ngModel)]="todayProgress" placeholder="0" min="0" class="progress-input">
+            <span class="progress-unit">{{ habit.milestone.unit }}</span>
+          </div>
+          <div class="progress-actions">
+            <button class="btn-confirm" (click)="logProgress()" type="button">Log Progress</button>
+          </div>
+        </div>
+        <button class="primary-action" (click)="confirmProgress()" [disabled]="habit.milestone && !progressLogged()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          I showed up today
+        </button>
+      </div>
 
       <div class="completed-state" *ngIf="state === 'done'">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -64,6 +79,9 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
         <div>
           <div class="completed-text">{{ habit.reward }}</div>
           <div class="completed-sub">You are {{ habit.identity }}</div>
+          <div class="today-progress" *ngIf="getTodayProgress() > 0 && habit.milestone">
+            +{{ getTodayProgress() }} {{ habit.milestone.unit }} today
+          </div>
         </div>
       </div>
 
@@ -175,6 +193,13 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
         </div>
       </div>
 
+      <app-confirm-modal
+        [show]="showDeleteModal"
+        title="Delete Habit"
+        message="Delete habit? This cannot be undone."
+        (confirm)="confirmDelete()"
+        (cancel)="showDeleteModal = false" />
+
     </div>
   `,
   styles: [`
@@ -214,8 +239,8 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
     }
 
     .icon-action {
-      width: 32px;
-      height: 32px;
+      width: 44px;
+      height: 44px;
       border-radius: 8px;
       border: none;
       background: #f3f4f6;
@@ -300,7 +325,12 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
       min-height: 48px;
     }
 
-    .primary-action:active {
+    .primary-action:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .primary-action:active:not(:disabled) {
       transform: scale(0.97);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
     }
@@ -629,6 +659,76 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
       min-height: 80px;
     }
 
+    .progress-input-card {
+      padding: 16px;
+      background: #fafafa;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+
+    .progress-input-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 12px;
+    }
+
+    .progress-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .progress-input {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid var(--habit-color);
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      min-height: 48px;
+      -webkit-appearance: none;
+      -moz-appearance: textfield;
+    }
+
+    .progress-unit {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6b7280;
+    }
+
+    .progress-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-cancel,
+    .btn-confirm {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 48px;
+    }
+
+    .btn-confirm {
+      background: var(--habit-color);
+      color: white;
+      width: 100%;
+    }
+
+    .today-progress {
+      font-size: 11px;
+      color: #047857;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
     @media (min-width: 768px) {
       .habit-card {
         border-radius: 20px;
@@ -820,6 +920,34 @@ import { ButtonComponent } from '../../../shared/ui/button.component';
       textarea {
         margin-top: 10px;
       }
+
+      .progress-input-card {
+        padding: 18px;
+        margin-bottom: 20px;
+      }
+
+      .progress-input-header {
+        font-size: 14px;
+        margin-bottom: 14px;
+      }
+
+      .progress-input {
+        font-size: 20px;
+      }
+
+      .progress-unit {
+        font-size: 15px;
+      }
+
+      .btn-cancel,
+      .btn-confirm {
+        padding: 14px;
+        font-size: 15px;
+      }
+
+      .today-progress {
+        font-size: 12px;
+      }
     }
   `]
 })
@@ -839,18 +967,60 @@ export class HabitCardComponent implements OnInit {
   showReflection = signal(false);
   showMilestoneInput = signal(false);
   showAdvanced = signal(false);
+  showProgressInput = signal(false);
+  progressLogged = signal(false);
+  showDeleteModal = false;
   note = '';
   milestoneCount = 1;
+  todayProgress = 0;
+
+  // Cache logs for performance
+  private logsCache = computed(() => this.habitService?.allLogs() || []);
+  private habitLogs = computed(() => 
+    this.logsCache().filter((l: any) => l.habitId === this.habit.id)
+  );
 
   ngOnInit() {
     this.note = this.existingNote;
     if (this.existingNote) {
       this.showReflection.set(true);
     }
+    if (this.getTodayProgress() > 0) {
+      this.progressLogged.set(true);
+    }
   }
 
   onComplete() {
     this.complete.emit();
+  }
+
+  logProgress() {
+    if (this.todayProgress >= 0) {
+      const dateStr = new Date().toISOString().split('T')[0];
+      const log = this.habitService.allLogs()
+        .find((l: any) => l.habitId === this.habit.id && l.date === dateStr);
+      
+      this.habitService.logHabit(
+        this.habit.id,
+        dateStr,
+        false,
+        log?.note,
+        this.todayProgress
+      );
+      this.progressLogged.set(true);
+    }
+  }
+
+  confirmProgress() {
+    this.complete.emit();
+  }
+
+  getTodayProgress(): number {
+    if (!this.habitService) return 0;
+    const today = new Date().toISOString().split('T')[0];
+    const log = this.habitService.allLogs()
+      .find((l: any) => l.habitId === this.habit.id && l.date === today);
+    return log?.milestoneCount || 0;
   }
 
   onNoteChange() {
@@ -896,9 +1066,7 @@ export class HabitCardComponent implements OnInit {
 
   getTotalVotes(): number {
     if (!this.habitService) return 0;
-    return this.habitService.allLogs()
-      .filter((l: any) => l.habitId === this.habit.id && l.completed)
-      .length;
+    return this.habitLogs().filter((l: any) => l.completed).length;
   }
 
   missedYesterday(): boolean {
@@ -968,8 +1136,11 @@ export class HabitCardComponent implements OnInit {
   }
 
   onDelete() {
-    if (confirm(`Delete "${this.habit.name}"? This cannot be undone.`)) {
-      this.delete.emit(this.habit.id);
-    }
+    this.showDeleteModal = true;
+  }
+
+  confirmDelete() {
+    this.showDeleteModal = false;
+    this.delete.emit(this.habit.id);
   }
 }

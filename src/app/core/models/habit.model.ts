@@ -12,6 +12,7 @@ export interface Habit {
   frequency: 'daily' | number[];
   color: string;
   createdAt: Date;
+  startDate?: string;
   twoMinuteRule?: string;
   milestone?: {
     target: number;
@@ -25,6 +26,11 @@ export interface Habit {
     consequence: string;
     accountabilityPartner?: string;
   };
+  dailyProgress?: {
+    required: boolean;
+    measure: string;
+    target?: number;
+  };
 }
 
 export interface HabitLog {
@@ -33,6 +39,7 @@ export interface HabitLog {
   completed: boolean;
   note?: string;
   milestoneCount?: number;
+  progressValue?: number;
 }
 
 export type HabitState = 'pending' | 'done' | 'missed';

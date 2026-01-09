@@ -24,9 +24,22 @@ export class HabitService {
         this.firebase.getHabits(),
         this.firebase.getLogs()
       ]);
-      this.habits.set(habits);
+      
+      // Set default startDate for existing habits without one
+      const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+      const updatedHabits = habits.map(h => ({
+        ...h,
+        startDate: h.startDate || yearStart
+      }));
+      
+      this.habits.set(updatedHabits);
       this.logs.set(logs);
       this.loaded.set(true);
+      
+      // Save updated habits if any were modified
+      if (habits.some(h => !h.startDate)) {
+        this.firebase.saveHabits(updatedHabits);
+      }
       
       // Setup real-time listeners after initial load
       this.firebase.onHabitsChange((habits) => this.habits.set(habits));
@@ -63,9 +76,15 @@ export class HabitService {
     return this.habits().find(h => h.id === id);
   }
 
-  logHabit(habitId: string, date: string, completed: boolean, note?: string, milestoneCount?: number): void {
+  logHabit(habitId: string, date: string, completed: boolean, note?: string, milestoneCount?: number, progressValue?: number): void {
     const logs = this.logs().filter(l => !(l.habitId === habitId && l.date === date));
-    const updated = [...logs, { habitId, date, completed, note, milestoneCount }];
+    const updated = [...logs, { habitId, date, completed, note, milestoneCount, progressValue }];
+    this.logs.set(updated);
+    this.firebase.saveLogs(updated);
+  }
+
+  removeLog(habitId: string, date: string): void {
+    const updated = this.logs().filter(l => !(l.habitId === habitId && l.date === date));
     this.logs.set(updated);
     this.firebase.saveLogs(updated);
   }

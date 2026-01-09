@@ -1,11 +1,13 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Habit, HabitState } from '../../../core/models/habit.model';
+import { ConfirmModalComponent } from '../../../shared/ui/confirm-modal.component';
 
 @Component({
   selector: 'app-habit-card-modern',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, ConfirmModalComponent],
   template: `
     <div class="card" [style.--color]="habit.color">
       
@@ -60,7 +62,19 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
         <span>{{ habit.cue }}</span>
       </div>
 
-      <button class="btn" *ngIf="state === 'pending'" (click)="complete.emit()">
+      <div class="progress-input" *ngIf="habit.dailyProgress?.required && state === 'pending'">
+        <label class="progress-label">Today's progress {{ habit.dailyProgress.target ? '(' + habit.dailyProgress.target + ' ' + habit.dailyProgress.measure + ')' : '' }}</label>
+        <div class="input-group">
+          <input 
+            type="text" 
+            [(ngModel)]="progressValue" 
+            class="progress-field"
+            [placeholder]="habit.dailyProgress.target?.toString() || '0'">
+          <span class="measure">{{ habit.dailyProgress.measure }}</span>
+        </div>
+      </div>
+
+      <button class="btn" *ngIf="state === 'pending'" (click)="onVote()">
         <span class="btn-icon">✓</span>
         <span>Vote</span>
       </button>
@@ -72,14 +86,22 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
 
       <div class="done" *ngIf="state === 'done'">
         <span class="check">✓</span>
-        <div>
+        <div class="done-content">
           <div class="done-text">{{ habit.reward }}</div>
           <div class="done-sub">You are {{ habit.identity }}</div>
+          <div class="progress-display" *ngIf="habit.dailyProgress?.required && getProgressValue() > 0">
+            {{ getProgressValue() }} {{ habit.dailyProgress.measure }}
+          </div>
+          <div class="cumulative" *ngIf="habit.dailyProgress?.required && getCumulativeProgress() > 0">
+            Till date: {{ getCumulativeProgress() }} {{ habit.dailyProgress.measure }}
+          </div>
         </div>
-      </div>
-
-      <div class="missed" *ngIf="state === 'missed'">
-        <span>Not today</span>
+        <button class="undo-btn" (click)="undo.emit()" type="button" title="Undo vote">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
 
       <div class="progress">
@@ -92,6 +114,25 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
         </div>
       </div>
 
+      <div class="popup-overlay" *ngIf="showCumulativePopup">
+        <div class="popup-content">
+          <div class="popup-icon">🎉</div>
+          <div class="popup-title">Amazing Progress!</div>
+          <div class="popup-stats">
+            <div class="stat-label">Total Achievement</div>
+            <div class="stat-value">{{ getCumulativeProgress() + progressValue }} {{ habit.dailyProgress!.measure }}</div>
+          </div>
+          <div class="popup-footer">Keep going, you're doing great!</div>
+        </div>
+      </div>
+
+      <app-confirm-modal
+        [show]="showDeleteModal"
+        title="Delete Habit"
+        message="Delete habit? This cannot be undone."
+        (confirm)="confirmDelete()"
+        (cancel)="showDeleteModal = false" />
+
     </div>
   `,
   styles: [`
@@ -101,6 +142,7 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
       padding: 24px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
       border-left: 4px solid var(--color);
+      position: relative;
     }
 
     .header {
@@ -116,8 +158,8 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
     }
 
     .action-btn {
-      width: 32px;
-      height: 32px;
+      width: 44px;
+      height: 44px;
       border-radius: 8px;
       border: none;
       background: #f3f4f6;
@@ -219,6 +261,60 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
       transition: transform 0.2s;
     }
 
+    .progress-input {
+      margin-bottom: 20px;
+    }
+
+    .progress-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #f9fafb;
+      border-radius: 12px;
+      border: 2px solid #e5e7eb;
+    }
+
+    .progress-field {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+      outline: none;
+      -webkit-appearance: none;
+      -moz-appearance: textfield;
+    }
+
+    .measure {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6b7280;
+    }
+
+    .progress-display {
+      margin-top: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #047857;
+    }
+
+    .cumulative {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6366f1;
+    }
+
     .btn:hover {
       transform: translateY(-2px);
     }
@@ -240,6 +336,31 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
       background: linear-gradient(135deg, #d1fae5, #a7f3d0);
       border-radius: 14px;
       margin-bottom: 20px;
+      position: relative;
+    }
+
+    .done-content {
+      flex: 1;
+    }
+
+    .undo-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255,255,255,0.5);
+      color: #065f46;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .undo-btn:active {
+      transform: scale(0.9);
+      background: rgba(255,255,255,0.8);
     }
 
     .check {
@@ -266,15 +387,7 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
       color: #047857;
     }
 
-    .missed {
-      padding: 14px;
-      text-align: center;
-      background: #f9fafb;
-      border-radius: 12px;
-      font-size: 14px;
-      color: #9ca3af;
-      margin-bottom: 20px;
-    }
+
 
     .progress {
       padding: 16px;
@@ -369,6 +482,96 @@ import { Habit, HabitState } from '../../../core/models/habit.model';
         background: #fee2e2;
       }
     }
+
+    .popup-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      border-radius: 20px;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    .popup-content {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 32px;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      text-align: center;
+      min-width: 300px;
+      max-width: 400px;
+      animation: scaleIn 0.3s ease-in-out;
+      color: white;
+    }
+
+    .popup-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      animation: bounce 0.6s ease-in-out;
+    }
+
+    .popup-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 24px;
+    }
+
+    .popup-stats {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 20px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: white;
+    }
+
+    .popup-footer {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
   `]
 })
 export class HabitCardModernComponent {
@@ -378,22 +581,59 @@ export class HabitCardModernComponent {
   @Input() habitService: any;
   
   @Output() complete = new EventEmitter<void>();
+  @Output() undo = new EventEmitter<void>();
   @Output() edit = new EventEmitter<string>();
   @Output() delete = new EventEmitter<string>();
+  @Output() progressUpdate = new EventEmitter<number>();
+
+  progressValue: number = 0;
+  showCumulativePopup = false;
+  showDeleteModal = false;
+
+  // Cache logs for performance
+  private logsCache = computed(() => this.habitService?.allLogs() || []);
+  private habitLogs = computed(() => 
+    this.logsCache().filter((l: any) => l.habitId === this.habit.id)
+  );
+
+  onVote() {
+    if (this.habit.dailyProgress?.required) {
+      this.progressUpdate.emit(this.progressValue);
+      this.showCumulativePopup = true;
+      setTimeout(() => {
+        this.showCumulativePopup = false;
+      }, 2500);
+      setTimeout(() => {
+        this.complete.emit();
+      }, 2600);
+    } else {
+      this.complete.emit();
+    }
+  }
+
+  getCumulativeProgress(): number {
+    if (!this.habitService || !this.habit.dailyProgress?.required) return 0;
+    return this.habitLogs()
+      .filter((l: any) => l.progressValue)
+      .reduce((sum: number, l: any) => sum + (l.progressValue || 0), 0);
+  }
+
+  getProgressValue(): number {
+    if (!this.habitService) return 0;
+    const today = new Date().toISOString().split('T')[0];
+    const log = this.habitLogs().find((l: any) => l.date === today);
+    return log?.progressValue || 0;
+  }
 
   getVoteCount(): number {
     if (!this.habitService) return 0;
-    return this.habitService.allLogs()
-      .filter((l: any) => l.habitId === this.habit.id && l.completed)
-      .length;
+    return this.habitLogs().filter((l: any) => l.completed).length;
   }
 
   missedYesterday(): boolean {
     if (!this.habitService) return false;
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
-    return this.habitService.getHabitState(this.habit.id, dateStr) === 'missed';
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    return this.habitService.getHabitState(this.habit.id, yesterday) === 'missed';
   }
 
   onEdit() {
@@ -401,8 +641,11 @@ export class HabitCardModernComponent {
   }
 
   onDelete() {
-    if (confirm(`Delete "${this.habit.name}"? This cannot be undone.`)) {
-      this.delete.emit(this.habit.id);
-    }
+    this.showDeleteModal = true;
+  }
+
+  confirmDelete() {
+    this.showDeleteModal = false;
+    this.delete.emit(this.habit.id);
   }
 }

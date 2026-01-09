@@ -143,6 +143,23 @@ import { CardComponent } from '../../shared/ui/card.component';
             <p class="hint">Start tiny. You can always do more.</p>
           </div>
 
+          <div class="form-group">
+            <label>Track daily progress?</label>
+            <div class="form-row">
+              <input 
+                type="number" 
+                [(ngModel)]="form.dailyTarget" 
+                name="dailyTarget"
+                placeholder="e.g., 10">
+              <input 
+                type="text" 
+                [(ngModel)]="form.dailyMeasure" 
+                name="dailyMeasure"
+                placeholder="e.g., pages, km, minutes">
+            </div>
+            <p class="hint">Leave empty to skip daily tracking</p>
+          </div>
+
           <div class="actions">
             <app-button type="submit" variant="primary">
               {{ editMode() ? 'Update Habit' : 'Create Habit' }}
@@ -196,6 +213,7 @@ import { CardComponent } from '../../shared/ui/card.component';
 
     input[type="text"],
     input[type="time"],
+    input[type="number"],
     select {
       width: 100%;
       padding: 12px;
@@ -204,6 +222,13 @@ import { CardComponent } from '../../shared/ui/card.component';
       font-size: 16px;
       min-height: 48px;
       -webkit-appearance: none;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
 
     input:focus,
@@ -285,6 +310,28 @@ import { CardComponent } from '../../shared/ui/card.component';
       min-height: auto;
     }
 
+    .form-group > label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      min-height: auto;
+      margin-right: 4px;
+    }
+
+    .form-group input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 16px;
+      min-height: 48px;
+    }
+
     .milestone-inputs {
       margin-top: 16px;
       padding: 16px;
@@ -350,6 +397,7 @@ import { CardComponent } from '../../shared/ui/card.component';
 
       input[type="text"],
       input[type="time"],
+      input[type="number"],
       select {
         padding: 10px;
         font-size: 15px;
@@ -391,7 +439,10 @@ export class HabitCreationComponent implements OnInit {
     color: '#6366f1',
     difficulty: 'tiny',
     contractCommitment: '',
-    accountabilityPartner: ''
+    accountabilityPartner: '',
+    milestoneUnit: '',
+    dailyTarget: '',
+    dailyMeasure: ''
   };
 
   days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -438,6 +489,15 @@ export class HabitCreationComponent implements OnInit {
     this.form.color = habit.color;
     this.form.difficulty = habit.difficulty || 'tiny';
     
+    if (habit.milestone) {
+      this.form.milestoneUnit = habit.milestone.unit;
+    }
+    
+    if (habit.dailyProgress) {
+      this.form.dailyTarget = (habit.dailyProgress as any).target || '';
+      this.form.dailyMeasure = habit.dailyProgress.measure;
+    }
+    
     if (Array.isArray(habit.frequency)) {
       this.form.frequency = 'custom';
       this.selectedDays.set(habit.frequency);
@@ -456,6 +516,7 @@ export class HabitCreationComponent implements OnInit {
   }
 
   onSubmit() {
+    const today = new Date().toISOString().split('T')[0];
     const habit: Habit = {
       id: this.editMode() ? this.habitId()! : self.crypto.randomUUID(),
       name: this.form.name,
@@ -471,7 +532,18 @@ export class HabitCreationComponent implements OnInit {
       frequency: this.form.frequency === 'daily' ? 'daily' : this.selectedDays(),
       color: this.form.color,
       createdAt: this.editMode() ? this.habitService.getHabitById(this.habitId()!)!.createdAt : new Date(),
-      difficulty: this.form.difficulty as 'tiny' | 'easy' | 'moderate'
+      startDate: this.editMode() ? this.habitService.getHabitById(this.habitId()!)!.startDate : today,
+      difficulty: this.form.difficulty as 'tiny' | 'easy' | 'moderate',
+      milestone: this.form.milestoneUnit ? {
+        target: 1000,
+        unit: this.form.milestoneUnit,
+        period: 'year'
+      } : undefined,
+      dailyProgress: (this.form.dailyTarget && this.form.dailyMeasure) ? {
+        required: true,
+        measure: this.form.dailyMeasure,
+        target: Number(this.form.dailyTarget)
+      } as any : undefined
     };
 
     if (this.editMode()) {

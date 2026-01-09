@@ -34,6 +34,11 @@ import { HabitCardModernComponent } from './habit-card/habit-card-modern.compone
             </svg>
           </button>
         </div>
+        <div class="view-toggle">
+          <button class="toggle-btn" [class.active]="groupByIdentity()" (click)="groupByIdentity.set(!groupByIdentity())">
+            Group by Identity
+          </button>
+        </div>
       </header>
 
       <div class="loading" *ngIf="!habitService.isLoaded()">
@@ -42,19 +47,40 @@ import { HabitCardModernComponent } from './habit-card/habit-card-modern.compone
       </div>
 
       <div class="habits-list" *ngIf="habitService.isLoaded()">
-        <app-habit-card-modern
-          *ngFor="let habit of todayHabits()"
-          [habit]="habit"
-          [state]="getHabitState(habit.id)"
-          [weeklyConsistency]="getWeeklyConsistency(habit.id)"
-          [habitService]="habitService"
-          (complete)="onComplete(habit.id)"
-          (progressUpdate)="onProgressUpdate(habit.id, $event)"
-          (undo)="onUndo(habit.id)"
-          (milestoneAdd)="onMilestoneAdd(habit.id, $event)"
-          (edit)="onEdit($event)"
-          (delete)="onDelete($event)">
-        </app-habit-card-modern>
+        <div *ngIf="groupByIdentity(); else normalView">
+          <div *ngFor="let group of habitsByIdentity()" class="identity-group">
+            <h3 class="identity-title">{{ group.identity }}</h3>
+            <app-habit-card-modern
+              *ngFor="let habit of group.habits"
+              [habit]="habit"
+              [state]="getHabitState(habit.id)"
+              [weeklyConsistency]="getWeeklyConsistency(habit.id)"
+              [habitService]="habitService"
+              (complete)="onComplete(habit.id)"
+              (progressUpdate)="onProgressUpdate(habit.id, $event)"
+              (undo)="onUndo(habit.id)"
+              (milestoneAdd)="onMilestoneAdd(habit.id, $event)"
+              (edit)="onEdit($event)"
+              (delete)="onDelete($event)">
+            </app-habit-card-modern>
+          </div>
+        </div>
+        
+        <ng-template #normalView>
+          <app-habit-card-modern
+            *ngFor="let habit of todayHabits()"
+            [habit]="habit"
+            [state]="getHabitState(habit.id)"
+            [weeklyConsistency]="getWeeklyConsistency(habit.id)"
+            [habitService]="habitService"
+            (complete)="onComplete(habit.id)"
+            (progressUpdate)="onProgressUpdate(habit.id, $event)"
+            (undo)="onUndo(habit.id)"
+            (milestoneAdd)="onMilestoneAdd(habit.id, $event)"
+            (edit)="onEdit($event)"
+            (delete)="onDelete($event)">
+          </app-habit-card-modern>
+        </ng-template>
 
         <div *ngIf="completedHabits().length > 0" class="completed-section">
           <h3 class="completed-title">Completed ({{ completedHabits().length }})</h3>
@@ -153,7 +179,45 @@ import { HabitCardModernComponent } from './habit-card/habit-card-modern.compone
     .habits-list {
       display: flex;
       flex-direction: column;
+      gap: 24px;
+    }
+
+    .identity-group {
+      display: flex;
+      flex-direction: column;
       gap: 12px;
+    }
+
+    .identity-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #6366f1;
+      margin: 0;
+      padding: 8px 0;
+      border-bottom: 2px solid #e5e7eb;
+      text-transform: capitalize;
+    }
+
+    .view-toggle {
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    .toggle-btn {
+      padding: 8px 16px;
+      background: white;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: #6366f1;
+      color: white;
+      border-color: #6366f1;
     }
 
     .completed-section {
@@ -362,6 +426,7 @@ export class DailyViewComponent {
   today = signal(new Date());
   showToast = signal(false);
   toastMessage = signal('');
+  groupByIdentity = signal(false);
   
   todayHabits = computed(() => {
     const dayOfWeek = this.today().getDay();
@@ -376,6 +441,17 @@ export class DailyViewComponent {
         return isScheduledToday && state !== 'done' && isAfterStart;
       })
       .sort((a, b) => a.time.localeCompare(b.time));
+  });
+
+  habitsByIdentity = computed(() => {
+    const habits = this.todayHabits();
+    const grouped = habits.reduce((acc, habit) => {
+      const identity = habit.identity || 'Other';
+      if (!acc[identity]) acc[identity] = [];
+      acc[identity].push(habit);
+      return acc;
+    }, {} as Record<string, typeof habits>);
+    return Object.entries(grouped).map(([identity, habits]) => ({ identity, habits }));
   });
 
   completedHabits = computed(() => {

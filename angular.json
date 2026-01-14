@@ -20,8 +20,20 @@
             "assets": [
               "src/assets",
               "src/robots.txt",
-              "src/favicon.ico"
-            ]
+              "src/favicon.ico",
+              {
+                "glob": "**/*",
+                "input": "src/assets/",
+                "output": "/assets/"
+              },
+              {
+                "glob": "manifest.json",
+                "input": "src/assets/",
+                "output": "/"
+              }
+            ],
+            "serviceWorker": true,
+            "ngswConfigPath": "src/ngsw-config.json"
           },
           "configurations": {
             "production": {

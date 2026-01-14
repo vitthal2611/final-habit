@@ -10,6 +10,7 @@ import { EnvironmentComponent } from './features/environment/environment.compone
 import { ReportComponent } from './features/reports/report.component';
 import { WeeklyReflectionComponent } from './features/weekly-reflection/weekly-reflection.component';
 import { LoginComponent } from './features/login/login.component';
+import { HabitCardDemoComponent } from './features/habit-card-demo/habit-card-demo.component';
 import { inject } from '@angular/core';
 import { FirebaseService } from './core/services/firebase.service';
 import { Router } from '@angular/router';
@@ -32,6 +33,7 @@ const authGuard = async () => {
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'demo', component: HabitCardDemoComponent },
   { path: '', component: DailyViewComponent, canActivate: [authGuard] },
   { path: 'create', component: HabitCreationComponent, canActivate: [authGuard] },
   { path: 'calendar', component: CalendarComponent, canActivate: [authGuard] },

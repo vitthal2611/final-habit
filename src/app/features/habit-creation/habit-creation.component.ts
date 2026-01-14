@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -14,156 +14,218 @@ import { CardComponent } from '../../shared/ui/card.component';
   template: `
     <div class="creation-flow">
       <header>
-        <h1>{{ editMode() ? 'Edit Habit' : 'Create a New Habit' }}</h1>
-        <p class="subtitle">Small actions, big identity shifts</p>
+        <button class="back-btn" (click)="goBack()" *ngIf="currentStep() > 1">
+          ← Back
+        </button>
+        <div class="progress-dots">
+          <span *ngFor="let step of [1,2,3,4]" 
+                [class.active]="currentStep() >= step"
+                [class.current]="currentStep() === step"></span>
+        </div>
       </header>
 
       <app-card>
-        <form (ngSubmit)="onSubmit()">
-          
-          <div class="form-group">
-            <label>When?</label>
-            <input 
-              type="text" 
-              [(ngModel)]="form.when" 
-              name="when"
-              list="whenList"
-              placeholder="e.g., After I wake up"
-              required>
-            <datalist id="whenList">
-              <option *ngFor="let trigger of uniqueTriggers()" [value]="trigger">
-            </datalist>
-          </div>
+        <!-- Step 1: Identity -->
+        <form *ngIf="currentStep() === 1" (ngSubmit)="nextStep()">
+          <div class="step-content">
+            <h1>Who are you becoming?</h1>
+            <p class="subtitle">Every action is a vote for the person you want to be</p>
 
-          <div class="form-group">
-            <label>What will you do?</label>
-            <input 
-              type="text" 
-              [(ngModel)]="form.name" 
-              name="name"
-              placeholder="e.g., Drink a glass of water"
-              required>
-          </div>
-
-          <div class="form-group">
-            <label>Time</label>
-            <input 
-              type="time" 
-              [(ngModel)]="form.time" 
-              name="time"
-              required>
-          </div>
-
-          <div class="form-group">
-            <label>Where?</label>
-            <input 
-              type="text" 
-              [(ngModel)]="form.where" 
-              name="where"
-              placeholder="In the kitchen"
-              required>
-          </div>
-
-          <div class="form-group">
-            <label>Who does this make you?</label>
-            <input 
-              type="text" 
-              [(ngModel)]="form.identity" 
-              name="identity"
-              list="identityList"
-              placeholder="e.g., a healthy person"
-              required>
-            <datalist id="identityList">
-              <option *ngFor="let identity of uniqueIdentities()" [value]="identity">
-            </datalist>
-          </div>
-
-          <div class="form-group">
-            <label>Environment design</label>
-            <input 
-              type="text" 
-              [(ngModel)]="form.cue" 
-              name="cue"
-              placeholder="Water bottle on counter"
-              required>
-          </div>
-
-          <div class="form-group">
-            <label>2-Minute Rule (optional)</label>
-            <input 
-              type="text" 
-              [(ngModel)]="form.twoMinuteRule" 
-              name="twoMinuteRule"
-              placeholder="e.g., Just put on my running shoes">
-            <p class="hint">Start with the smallest version of your habit</p>
-          </div>
-
-          <div class="form-group">
-            <label>Frequency</label>
-            <select [(ngModel)]="form.frequency" name="frequency">
-              <option value="daily">Every day</option>
-              <option value="custom">Custom days</option>
-            </select>
-          </div>
-
-          <div class="form-group" *ngIf="form.frequency === 'custom'">
-            <label>Select days</label>
-            <div class="days-selector">
-              <label *ngFor="let day of days; let i = index" class="day-checkbox">
-                <input 
-                  type="checkbox" 
-                  [checked]="selectedDays().includes(i)"
-                  (change)="toggleDay(i)">
-                {{ day }}
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Choose a color</label>
-            <div class="color-picker">
-              <button 
-                type="button"
-                *ngFor="let color of colors"
-                class="color-option"
-                [class.selected]="form.color === color"
-                [style.background]="color"
-                (click)="form.color = color">
-              </button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>How hard is this habit?</label>
-            <select [(ngModel)]="form.difficulty" name="difficulty">
-              <option value="tiny">Tiny (2 min or less)</option>
-              <option value="easy">Easy (5-10 min)</option>
-              <option value="moderate">Moderate (15+ min)</option>
-            </select>
-            <p class="hint">Start tiny. You can always do more.</p>
-          </div>
-
-          <div class="form-group">
-            <label>Track daily progress?</label>
-            <div class="form-row">
-              <input 
-                type="number" 
-                [(ngModel)]="form.dailyTarget" 
-                name="dailyTarget"
-                placeholder="e.g., 10">
+            <div class="form-group">
+              <label>I am a...</label>
               <input 
                 type="text" 
-                [(ngModel)]="form.dailyMeasure" 
-                name="dailyMeasure"
-                placeholder="e.g., pages, km, minutes">
+                [(ngModel)]="form.identity" 
+                name="identity"
+                list="identityList"
+                placeholder="person who moves daily"
+                required
+                autofocus>
+              <datalist id="identityList">
+                <option *ngFor="let identity of uniqueIdentities()" [value]="identity">
+              </datalist>
             </div>
-            <p class="hint">Leave empty to skip daily tracking</p>
-          </div>
 
-          <div class="actions">
-            <app-button type="submit" variant="primary">
-              {{ editMode() ? 'Update Habit' : 'Create Habit' }}
-            </app-button>
+            <div class="examples">
+              <p class="examples-label">Examples:</p>
+              <button type="button" class="example-chip" (click)="form.identity = 'person who prioritizes health'">person who prioritizes health</button>
+              <button type="button" class="example-chip" (click)="form.identity = 'reader'">reader</button>
+              <button type="button" class="example-chip" (click)="form.identity = 'early riser'">early riser</button>
+              <button type="button" class="example-chip" (click)="form.identity = 'organized person'">organized person</button>
+            </div>
+
+            <div class="actions">
+              <app-button type="submit" variant="primary" [disabled]="!form.identity">
+                Continue
+              </app-button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Step 2: Action + Trigger -->
+        <form *ngIf="currentStep() === 2" (ngSubmit)="nextStep()">
+          <div class="step-content">
+            <h1>What's one small action?</h1>
+            <p class="subtitle">Start tiny. You can always do more.</p>
+
+            <div class="form-group">
+              <label>After I...</label>
+              <input 
+                type="text" 
+                [(ngModel)]="form.when" 
+                name="when"
+                list="whenList"
+                placeholder="wake up"
+                required>
+              <datalist id="whenList">
+                <option *ngFor="let trigger of uniqueTriggers()" [value]="trigger">
+              </datalist>
+            </div>
+
+            <div class="form-group">
+              <label>I will...</label>
+              <input 
+                type="text" 
+                [(ngModel)]="form.name" 
+                name="name"
+                placeholder="do 2 pushups"
+                required>
+            </div>
+
+            <div class="form-group">
+              <label>In/At...</label>
+              <input 
+                type="text" 
+                [(ngModel)]="form.where" 
+                name="where"
+                placeholder="my bedroom"
+                required>
+            </div>
+
+            <div class="form-group">
+              <label>Time</label>
+              <input 
+                type="time" 
+                [(ngModel)]="form.time" 
+                name="time"
+                required>
+            </div>
+
+            <div class="form-group">
+              <label>2-Minute Version</label>
+              <input 
+                type="text" 
+                [(ngModel)]="form.twoMinuteRule" 
+                name="twoMinuteRule"
+                placeholder="Just get on the floor"
+                required>
+              <p class="hint">The smallest version to get started</p>
+            </div>
+
+            <div class="trigger-preview" *ngIf="form.when && form.name && form.where">
+              <p class="preview-label">Your trigger:</p>
+              <p class="preview-text">After I <strong>{{form.when}}</strong>, I will <strong>{{form.name}}</strong> in <strong>{{form.where}}</strong></p>
+            </div>
+
+            <div class="actions">
+              <app-button type="submit" variant="primary" 
+                [disabled]="!form.when || !form.name || !form.where || !form.time || !form.twoMinuteRule">
+                Continue
+              </app-button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Step 3: Cue + Reward -->
+        <form *ngIf="currentStep() === 3" (ngSubmit)="nextStep()">
+          <div class="step-content">
+            <h1>Make it obvious & satisfying</h1>
+            <p class="subtitle">Design your environment and celebrate the feeling</p>
+
+            <div class="form-group">
+              <label>What will remind you?</label>
+              <input 
+                type="text" 
+                [(ngModel)]="form.cue" 
+                name="cue"
+                placeholder="Workout mat by the bed"
+                required>
+              <p class="hint">A visual cue in your environment</p>
+            </div>
+
+            <div class="form-group">
+              <label>How will you feel after?</label>
+              <input 
+                type="text" 
+                [(ngModel)]="form.reward" 
+                name="reward"
+                placeholder="Energized and proud"
+                required>
+              <p class="hint">The immediate emotional reward</p>
+            </div>
+
+            <div class="actions">
+              <app-button type="submit" variant="primary" 
+                [disabled]="!form.cue || !form.reward">
+                Continue
+              </app-button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Step 4: Frequency + Color -->
+        <form *ngIf="currentStep() === 4" (ngSubmit)="onSubmit()">
+          <div class="step-content">
+            <h1>Final touches</h1>
+            <p class="subtitle">When and how often?</p>
+
+            <div class="form-group">
+              <label>Frequency</label>
+              <select [(ngModel)]="form.frequency" name="frequency">
+                <option value="daily">Every day</option>
+                <option value="custom">Custom days</option>
+              </select>
+            </div>
+
+            <div class="form-group" *ngIf="form.frequency === 'custom'">
+              <div class="days-selector">
+                <label *ngFor="let day of days; let i = index" class="day-checkbox">
+                  <input 
+                    type="checkbox" 
+                    [checked]="selectedDays().includes(i)"
+                    (change)="toggleDay(i)">
+                  {{ day }}
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Choose a color</label>
+              <div class="color-picker">
+                <button 
+                  type="button"
+                  *ngFor="let color of colors"
+                  class="color-option"
+                  [class.selected]="form.color === color"
+                  [style.background]="color"
+                  (click)="form.color = color">
+                </button>
+              </div>
+            </div>
+
+            <div class="habit-preview">
+              <div class="preview-card" [style.border-left-color]="form.color">
+                <p class="preview-identity">{{ form.identity }}</p>
+                <h3 class="preview-name">{{ form.name }}</h3>
+                <p class="preview-trigger">After {{ form.when }} • {{ form.where }}</p>
+              </div>
+            </div>
+
+            <div class="actions">
+              <app-button type="submit" variant="primary">
+                {{ editMode() ? 'Update Habit' : 'Create Habit' }}
+              </app-button>
+            </div>
           </div>
         </form>
       </app-card>
@@ -174,103 +236,233 @@ import { CardComponent } from '../../shared/ui/card.component';
       max-width: 600px;
       margin: 0 auto;
       padding: 16px;
+      background: #f2f2f7;
+      min-height: 100vh;
     }
 
     header {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .back-btn {
+      position: absolute;
+      left: 0;
+      background: none;
+      border: none;
+      font-size: 17px;
+      color: #007aff;
+      cursor: pointer;
+      padding: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .progress-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .progress-dots span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #d1d1d6;
+      transition: all 0.3s;
+    }
+
+    .progress-dots span.active {
+      background: #007aff;
+    }
+
+    .progress-dots span.current {
+      width: 24px;
+      border-radius: 4px;
+    }
+
+    .step-content {
+      text-align: center;
     }
 
     h1 {
-      font-size: 24px;
+      font-size: 28px;
       font-weight: 700;
-      color: #111827;
-      margin: 0 0 4px 0;
+      color: #1d1d1f;
+      margin: 0 0 8px 0;
+      letter-spacing: -0.5px;
     }
 
     .subtitle {
-      font-size: 14px;
-      color: #6b7280;
+      font-size: 17px;
+      color: #86868b;
+      margin: 0 0 32px 0;
+      font-weight: 400;
+    }
+
+    .examples {
+      margin: 24px 0;
+      text-align: left;
+    }
+
+    .examples-label {
+      font-size: 15px;
+      color: #86868b;
+      margin: 0 0 12px 0;
+    }
+
+    .example-chip {
+      display: inline-block;
+      padding: 8px 16px;
+      margin: 4px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 20px;
+      font-size: 15px;
+      color: #1d1d1f;
+      cursor: pointer;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .example-chip:hover {
+      background: #f2f2f7;
+      border-color: #007aff;
+    }
+
+    .trigger-preview,
+    .habit-preview {
+      margin: 24px 0;
+      padding: 20px;
+      background: #f2f2f7;
+      border-radius: 12px;
+      text-align: left;
+    }
+
+    .preview-label {
+      font-size: 13px;
+      color: #86868b;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preview-text {
+      font-size: 17px;
+      color: #1d1d1f;
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .preview-card {
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      border-left: 4px solid;
+      text-align: left;
+    }
+
+    .preview-identity {
+      font-size: 13px;
+      color: #86868b;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preview-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin: 0 0 8px 0;
+    }
+
+    .preview-trigger {
+      font-size: 15px;
+      color: #86868b;
       margin: 0;
     }
 
     .form-group {
-      margin-bottom: 18px;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 18px;
+      margin-bottom: 20px;
+      text-align: left;
     }
 
     label {
       display: block;
-      font-size: 14px;
-      font-weight: 500;
-      color: #374151;
-      margin-bottom: 6px;
+      font-size: 17px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 8px;
     }
 
     input[type="text"],
     input[type="time"],
-    input[type="number"],
     select {
       width: 100%;
-      padding: 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 16px;
-      min-height: 48px;
-      -webkit-appearance: none;
-      -moz-appearance: textfield;
-    }
-
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
+      padding: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 17px;
+      background: white;
+      transition: border-color 0.2s;
     }
 
     input:focus,
     select:focus {
       outline: none;
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      border-color: #007aff;
     }
 
     .days-selector {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .day-checkbox {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 14px;
+      justify-content: center;
+      min-width: 44px;
+      height: 44px;
+      font-size: 15px;
+      font-weight: 500;
       cursor: pointer;
-      padding: 8px 12px;
-      background: #f9fafb;
       border-radius: 8px;
+      background: #f2f2f7;
+      color: #1d1d1f;
+      transition: all 0.2s;
       -webkit-tap-highlight-color: transparent;
     }
 
     .day-checkbox input {
-      width: 18px;
-      height: 18px;
-      min-height: auto;
+      display: none;
+    }
+
+    .day-checkbox:has(input:checked) {
+      background: #007aff;
+      color: white;
     }
 
     .color-picker {
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .color-option {
-      width: 48px;
-      height: 48px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       border: 3px solid transparent;
       cursor: pointer;
@@ -283,153 +475,38 @@ import { CardComponent } from '../../shared/ui/card.component';
     }
 
     .color-option.selected {
-      border-color: #111827;
+      border-color: #1d1d1f;
       transform: scale(1.1);
     }
 
     .actions {
-      margin-top: 24px;
-    }
-
-    .milestone-section {
-      padding-top: 18px;
-      border-top: 1px solid #e5e7eb;
-    }
-
-    .milestone-section > label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      min-height: 44px;
-    }
-
-    .milestone-section input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      min-height: auto;
-    }
-
-    .form-group > label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .form-group input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      min-height: auto;
-      margin-right: 4px;
-    }
-
-    .form-group input[type="number"] {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 16px;
-      min-height: 48px;
-    }
-
-    .milestone-inputs {
-      margin-top: 16px;
-      padding: 16px;
-      background: #f9fafb;
-      border-radius: 8px;
+      margin-top: 32px;
+      text-align: center;
     }
 
     .hint {
-      font-size: 12px;
-      color: #9ca3af;
-      margin: 4px 0 0 0;
-      font-style: italic;
-    }
-
-    .contract-section {
-      padding-top: 18px;
-      border-top: 1px solid #e5e7eb;
-    }
-
-    .contract-section > label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      min-height: 44px;
-    }
-
-    .contract-section input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      min-height: auto;
-    }
-
-    .contract-inputs {
-      margin-top: 16px;
-      padding: 16px;
-      background: #fef2f2;
-      border-radius: 8px;
-      border-left: 3px solid #ef4444;
+      font-size: 15px;
+      color: #86868b;
+      margin: 8px 0 0 0;
+      font-weight: 400;
     }
 
     @media (min-width: 768px) {
       .creation-flow {
         padding: 24px;
       }
-
-      header {
-        margin-bottom: 24px;
-      }
-
-      h1 {
-        font-size: 28px;
-      }
-
-      .form-group {
-        margin-bottom: 20px;
-      }
-
-      .form-row {
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-      }
-
-      input[type="text"],
-      input[type="time"],
-      input[type="number"],
-      select {
-        padding: 10px;
-        font-size: 15px;
-        min-height: auto;
-      }
-
-      .color-option {
-        width: 40px;
-        height: 40px;
-      }
-
-      .actions {
-        margin-top: 32px;
-      }
-
-      .milestone-section {
-        padding-top: 20px;
-      }
-
-      .contract-section {
-        padding-top: 20px;
-      }
     }
   `]
 })
 export class HabitCreationComponent implements OnInit {
+  currentStep = signal(1);
   editMode = signal(false);
   habitId = signal<string | null>(null);
   
   form = {
     name: '',
     identity: '',
+    reward: '',
     when: '',
     time: '',
     where: '',
@@ -440,9 +517,7 @@ export class HabitCreationComponent implements OnInit {
     difficulty: 'tiny',
     contractCommitment: '',
     accountabilityPartner: '',
-    milestoneUnit: '',
-    dailyTarget: '',
-    dailyMeasure: ''
+    milestoneUnit: ''
   };
 
   days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -464,7 +539,13 @@ export class HabitCreationComponent implements OnInit {
     private habitService: HabitService,
     private router: Router,
     private route: ActivatedRoute
-  ) {}
+  ) {
+    effect(() => {
+      if (this.currentStep() === 1 && !this.form.color) {
+        this.form.color = this.colors[Math.floor(Math.random() * this.colors.length)];
+      }
+    });
+  }
 
   ngOnInit() {
     const id = this.route.snapshot.queryParamMap.get('id');
@@ -473,6 +554,7 @@ export class HabitCreationComponent implements OnInit {
       if (habit) {
         this.editMode.set(true);
         this.habitId.set(id);
+        this.currentStep.set(4);
         this.loadHabitData(habit);
       }
     }
@@ -481,6 +563,7 @@ export class HabitCreationComponent implements OnInit {
   loadHabitData(habit: Habit) {
     this.form.name = habit.name;
     this.form.identity = habit.identity;
+    this.form.reward = habit.reward;
     this.form.when = habit.trigger.when;
     this.form.time = habit.time;
     this.form.where = habit.trigger.where;
@@ -493,16 +576,23 @@ export class HabitCreationComponent implements OnInit {
       this.form.milestoneUnit = habit.milestone.unit;
     }
     
-    if (habit.dailyProgress) {
-      this.form.dailyTarget = (habit.dailyProgress as any).target || '';
-      this.form.dailyMeasure = habit.dailyProgress.measure;
-    }
-    
     if (Array.isArray(habit.frequency)) {
       this.form.frequency = 'custom';
       this.selectedDays.set(habit.frequency);
     } else {
       this.form.frequency = 'daily';
+    }
+  }
+
+  nextStep() {
+    this.currentStep.update(s => s + 1);
+  }
+
+  goBack() {
+    if (this.currentStep() > 1) {
+      this.currentStep.update(s => s - 1);
+    } else {
+      this.router.navigate(['/']);
     }
   }
 
@@ -527,7 +617,7 @@ export class HabitCreationComponent implements OnInit {
       },
       time: this.form.time,
       cue: this.form.cue,
-      reward: '',
+      reward: this.form.reward,
       twoMinuteRule: this.form.twoMinuteRule || undefined,
       frequency: this.form.frequency === 'daily' ? 'daily' : this.selectedDays(),
       color: this.form.color,
@@ -538,12 +628,7 @@ export class HabitCreationComponent implements OnInit {
         target: 1000,
         unit: this.form.milestoneUnit,
         period: 'year'
-      } : undefined,
-      dailyProgress: (this.form.dailyTarget && this.form.dailyMeasure) ? {
-        required: true,
-        measure: this.form.dailyMeasure,
-        target: Number(this.form.dailyTarget)
-      } as any : undefined
+      } : undefined
     };
 
     if (this.editMode()) {

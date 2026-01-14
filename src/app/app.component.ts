@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FirebaseService } from './core/services/firebase.service';
+import { InstallButtonComponent } from './shared/components/install-button.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, InstallButtonComponent],
   template: `
     <div class="app">
       <div *ngIf="firebase.authLoading()" class="loading-screen">
@@ -48,6 +49,8 @@ import { FirebaseService } from './core/services/firebase.service';
       <main class="main" *ngIf="!firebase.authLoading()">
         <router-outlet></router-outlet>
       </main>
+
+      <app-install-button></app-install-button>
     </div>
   `,
   styles: [`

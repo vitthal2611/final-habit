@@ -23,13 +23,13 @@ export class FirebaseService {
     
     console.error = (...args: any[]) => {
       const msg = args[0]?.toString() || '';
-      if (msg.includes('MDL') || msg.includes('handler.js') || msg.includes('Cross-Origin')) return;
+      if (msg.includes('MDL') || msg.includes('handler.js') || msg.includes('Cross-Origin') || msg.includes('sessionStorage')) return;
       originalError.apply(console, args);
     };
     
     console.warn = (...args: any[]) => {
       const msg = args[0]?.toString() || '';
-      if (msg.includes('Cross-Origin') || msg.includes('window.closed')) return;
+      if (msg.includes('Cross-Origin') || msg.includes('window.closed') || msg.includes('sessionStorage') || msg.includes('initial state')) return;
       originalWarn.apply(console, args);
     };
     
@@ -48,14 +48,21 @@ export class FirebaseService {
 
   async signInWithGoogle(): Promise<void> {
     const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      // Fallback to redirect if popup is blocked
-      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-        await signInWithRedirect(auth, provider);
-      } else {
-        throw error;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Use redirect on mobile
+      await signInWithRedirect(auth, provider);
+    } else {
+      // Use popup on desktop with redirect fallback
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (error: any) {
+        if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+          await signInWithRedirect(auth, provider);
+        } else {
+          throw error;
+        }
       }
     }
   }

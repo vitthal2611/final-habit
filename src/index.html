@@ -45,6 +45,30 @@
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   
   <title>Atomic Habits Tracker - Build Better Habits</title>
+  <script>
+    // Suppress Firebase Auth iframe errors
+    window.addEventListener('error', function(e) {
+      const msg = e.message || '';
+      const file = e.filename || '';
+      if (file.includes('handler.js') || file.includes('spoofer.js') || 
+          msg.includes('MDL') || msg.includes('cross-origin')) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        return false;
+      }
+    }, true);
+    
+    // Suppress unhandled promise rejections from Firebase Auth
+    window.addEventListener('unhandledrejection', function(e) {
+      const msg = e.reason?.message || e.reason || '';
+      if (msg.includes('cross-origin') || msg.includes('getComputedStyle') || 
+          msg.includes('dispatchEvent') || msg.includes('history')) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        return false;
+      }
+    }, true);
+  </script>
 </head>
 <body>
   <app-root></app-root>

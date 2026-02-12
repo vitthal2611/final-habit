@@ -17,37 +17,14 @@ import { InstallButtonComponent } from './shared/components/install-button.compo
 
       <nav class="nav" *ngIf="firebase.currentUser() && !firebase.authLoading()">
         <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
-          Today
-        </a>
-        <a routerLink="/calendar" routerLinkActive="active">
-          Calendar
-        </a>
-        <a routerLink="/report" routerLinkActive="active">
-          Report
-        </a>
-        <a routerLink="/reflection" routerLinkActive="active">
-          Reflection
-        </a>
-        <a routerLink="/weekly" routerLinkActive="active">
-          Weekly
-        </a>
-        <a routerLink="/identity" routerLinkActive="active">
-          Identity
-        </a>
-        <a routerLink="/tips" routerLinkActive="active">
-          💡 Tips
-        </a>
-        <a routerLink="/create" routerLinkActive="active" class="create-btn">
-          + New
+          Dashboard
         </a>
         <button class="logout-btn" (click)="signOut()">
           Logout
         </button>
       </nav>
 
-      <button class="quick-habit-btn" *ngIf="firebase.currentUser() && !firebase.authLoading()" routerLink="/create">
-        +
-      </button>
+
 
       <main class="main" *ngIf="!firebase.authLoading()">
         <router-outlet></router-outlet>
@@ -59,7 +36,7 @@ import { InstallButtonComponent } from './shared/components/install-button.compo
   styles: [`
     .app {
       min-height: 100vh;
-      background: #f9fafb;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
     .loading-screen {
@@ -90,148 +67,57 @@ import { InstallButtonComponent } from './shared/components/install-button.compo
     }
 
     .nav {
-      background: white;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+      padding: 16px 24px;
       display: flex;
-      gap: 8px;
+      justify-content: space-between;
       align-items: center;
       position: sticky;
       top: 0;
       z-index: 100;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
-
-    .nav::-webkit-scrollbar {
-      display: none;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     }
 
     .nav a {
       text-decoration: none;
-      color: #6b7280;
-      font-size: 14px;
-      font-weight: 500;
-      padding: 8px 12px;
-      border-radius: 8px;
-      transition: all 0.2s;
-      white-space: nowrap;
-      flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .nav a:active {
-      transform: scale(0.95);
-    }
-
-    .nav a:hover {
-      color: #111827;
-      background: #f3f4f6;
-    }
-
-    .nav a.active {
-      color: #6366f1;
-      background: #eef2ff;
-      font-weight: 600;
-    }
-
-    .create-btn {
-      margin-left: auto;
-      background: #6366f1 !important;
-      color: white !important;
-      font-weight: 600 !important;
-    }
-
-    .create-btn:hover {
-      background: #4f46e5 !important;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
 
     .logout-btn {
       padding: 8px 16px;
-      background: #ef4444;
-      color: white;
-      border: none;
+      background: transparent;
+      color: #8b5cf6;
+      border: 2px solid #8b5cf6;
       border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
       cursor: pointer;
-      white-space: nowrap;
-      flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .logout-btn:active {
-      transform: scale(0.95);
+      transition: all 0.2s;
     }
 
     .logout-btn:hover {
-      background: #dc2626;
+      background: #8b5cf6;
+      color: #fff;
     }
 
-    .quick-habit-btn {
-      position: fixed;
-      bottom: 20px;
-      bottom: calc(20px + env(safe-area-inset-bottom));
-      right: 20px;
-      width: 56px;
-      height: 56px;
-      background: #6366f1;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      font-size: 28px;
-      font-weight: 300;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-      transition: all 0.2s;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      -webkit-tap-highlight-color: transparent;
-    }
 
-    .quick-habit-btn:active {
-      transform: scale(0.9);
-    }
-
-    .quick-habit-btn:hover {
-      background: #4f46e5;
-      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
-    }
 
     .main {
-      padding-bottom: 80px;
-      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+      padding-bottom: 40px;
     }
 
     @media (min-width: 768px) {
       .nav {
-        padding: 16px 24px;
-        gap: 16px;
-      }
-
-      .nav a {
-        font-size: 15px;
-        padding: 8px 16px;
-      }
-
-      .create-btn {
-        margin-left: auto;
-      }
-
-      .logout-btn {
-        margin-left: 0;
-      }
-
-      .quick-habit-btn {
-        bottom: 24px;
-        right: 24px;
-      }
-
-      .main {
-        padding-bottom: 40px;
+        padding: 20px 32px;
       }
     }
   `]

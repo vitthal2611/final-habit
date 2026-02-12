@@ -6,9 +6,10 @@ interface WeeklyHabit {
   time: string;
   trigger: string;
   action: string;
-  days: number[];
+  days: boolean[];
   streak: number;
   consistency: number;
+  createdDate: string;
 }
 
 @Component({
@@ -17,349 +18,390 @@ interface WeeklyHabit {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="dashboard">
-      <header class="header">
-        <h1>Life Habit Tracker</h1>
-        <div class="week-selector">
+      <!-- Performance Header -->
+      <div class="performance-header">
+        <div class="score-value">{{ avgConsistency() }}<span class="score-unit">%</span></div>
+        <div class="score-label">WEEK SCORE</div>
+        <div class="week-nav">
           <button (click)="previousWeek()" class="nav-btn">←</button>
-          <span class="week-range">Week: {{ weekRange() }}</span>
+          <div class="week-info">{{ weekRange() }}</div>
           <button (click)="nextWeek()" class="nav-btn">→</button>
         </div>
-      </header>
-
-      <div class="table-container">
-        <table class="habit-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Trigger</th>
-              <th>Action</th>
-              <th *ngFor="let day of weekDays()">{{ day.label }}<br><small>{{ day.date }}</small></th>
-              <th>Streak</th>
-              <th>Consistency</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let habit of habits(); let i = index">
-              <td>
-                <input [(ngModel)]="habit.time" class="input-time" />
-              </td>
-              <td>
-                <input [(ngModel)]="habit.trigger" class="input-text" />
-              </td>
-              <td>
-                <input [(ngModel)]="habit.action" class="input-text" />
-              </td>
-              <td *ngFor="let day of [0,1,2,3,4,5,6]; let j = index" class="day-cell">
-                <input 
-                  type="number" 
-                  [(ngModel)]="habit.days[j]" 
-                  class="input-minutes"
-                  (change)="updateMetrics(i)"
-                  min="0"
-                  max="1440"
-                />
-              </td>
-              <td class="streak-cell">
-                <span class="streak-badge">{{ habit.streak }}</span>
-              </td>
-              <td class="consistency-cell">
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="habit.consistency"></div>
-                  <span class="progress-text">{{ habit.consistency }}%</span>
-                </div>
-              </td>
-              <td>
-                <button (click)="deleteHabit(i)" class="btn-delete">Delete</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
 
-      <button (click)="addHabit()" class="btn-add">+ Add Habit</button>
-
-      <div class="summary">
-        <div class="summary-card">
-          <h3>Total Minutes</h3>
-          <p class="summary-value">{{ totalMinutes() }}</p>
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">COMPLETED</div>
+          <div class="kpi-value">{{ totalMinutes() }}</div>
         </div>
-        <div class="summary-card">
-          <h3>Avg Consistency</h3>
-          <p class="summary-value">{{ avgConsistency() }}%</p>
+        <div class="kpi-card">
+          <div class="kpi-label">HABITS</div>
+          <div class="kpi-value">{{ habits().length }}</div>
         </div>
-        <div class="summary-card">
-          <h3>Active Habits</h3>
-          <p class="summary-value">{{ habits().length }}</p>
+        <div class="kpi-card">
+          <div class="kpi-label">STREAK</div>
+          <div class="kpi-value">{{ avgStreak() }}<span class="kpi-unit">d</span></div>
         </div>
       </div>
+
+      <!-- Habit Cards -->
+      <div class="habit-list">
+        <div class="habit-card" *ngFor="let habit of habits(); let i = index">
+          <div class="habit-header">
+            <input [(ngModel)]="habit.time" class="input-time" placeholder="Time" type="time" />
+            <button (click)="deleteHabit(i)" class="btn-delete">×</button>
+          </div>
+          <input [(ngModel)]="habit.trigger" class="input-trigger" placeholder="Trigger" />
+          <input [(ngModel)]="habit.action" class="input-action" placeholder="Habit" />
+          
+          <div class="days-grid">
+            <div *ngFor="let day of [0,1,2,3,4,5,6]; let j = index" class="day-cell">
+              <div class="day-label">{{ weekDays()[j].label }}</div>
+              <button
+                class="day-btn"
+                [class.done]="habit.days[j]"
+                [class.future]="isFutureDay(j)"
+                [class.before-created]="isBeforeCreated(habit, j)"
+                [disabled]="isFutureDay(j) || isBeforeCreated(habit, j)"
+                (click)="toggleDay(i, j)"
+              >
+                {{ habit.days[j] ? '✓' : '' }}
+              </button>
+            </div>
+          </div>
+          
+          <div class="habit-stats">
+            <div class="stat">{{ calculateStreak(habit) }}d streak</div>
+            <div class="stat">{{ habit.consistency }}% done</div>
+          </div>
+        </div>
+      </div>
+
+      <button (click)="addHabit()" class="btn-add">+ NEW HABIT</button>
     </div>
   `,
   styles: [`
+    * { box-sizing: border-box; }
+    
     .dashboard {
-      max-width: 1600px;
-      margin: 0 auto;
-      padding: 20px;
-      background: #f8f9fa;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
+      padding: 1rem;
+      padding-bottom: 5rem;
     }
 
-    .header {
-      background: white;
-      padding: 24px;
-      border-radius: 12px;
-      margin-bottom: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .header h1 {
-      margin: 0 0 16px 0;
-      font-size: 28px;
-      color: #1a1a1a;
-      font-weight: 700;
-    }
-
-    .week-selector {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .week-range {
-      font-size: 16px;
-      font-weight: 600;
-      color: #495057;
-    }
-
-    .nav-btn {
-      background: #6366f1;
-      color: white;
-      border: none;
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 18px;
-      transition: all 0.2s;
-    }
-
-    .nav-btn:hover {
-      background: #4f46e5;
-      transform: scale(1.05);
-    }
-
-    .table-container {
-      background: white;
-      border-radius: 12px;
-      overflow-x: auto;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
-    }
-
-    .habit-table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 1200px;
-    }
-
-    .habit-table th {
-      background: #6366f1;
-      color: white;
-      padding: 16px 12px;
-      text-align: left;
-      font-weight: 600;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-right: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .habit-table th small {
-      font-size: 11px;
-      opacity: 0.9;
-      font-weight: 400;
-    }
-
-    .habit-table td {
-      padding: 12px;
-      border-bottom: 1px solid #e9ecef;
-      border-right: 1px solid #e9ecef;
-    }
-
-    .habit-table tr:hover {
-      background: #f8f9fa;
-    }
-
-    .input-time {
-      width: 80px;
-      padding: 8px;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-
-    .input-text {
-      width: 100%;
-      min-width: 180px;
-      padding: 8px;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-
-    .input-minutes {
-      width: 60px;
-      padding: 8px;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
-      text-align: center;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .day-cell {
-      text-align: center;
-      background: #f8f9fa;
-    }
-
-    .input-minutes:focus {
-      outline: none;
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    }
-
-    .streak-cell {
-      text-align: center;
-    }
-
-    .streak-badge {
-      display: inline-block;
-      background: #10b981;
-      color: white;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-weight: 700;
-      font-size: 14px;
-    }
-
-    .consistency-cell {
-      min-width: 140px;
-    }
-
-    .progress-bar {
-      position: relative;
-      height: 32px;
-      background: #e9ecef;
+    .performance-header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
       border-radius: 16px;
-      overflow: hidden;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     }
 
-    .progress-fill {
-      position: absolute;
-      height: 100%;
-      background: linear-gradient(90deg, #10b981, #059669);
-      transition: width 0.3s ease;
+    .score-value {
+      font-size: 3.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
     }
 
-    .progress-text {
-      position: relative;
+    .score-unit {
+      font-size: 1.5rem;
+      color: #8b5cf6;
+    }
+
+    .score-label {
+      font-size: 0.625rem;
+      letter-spacing: 0.2em;
+      color: #6b7280;
+      margin: 0.5rem 0 1rem;
+    }
+
+    .week-nav {
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100%;
+      gap: 1rem;
+    }
+
+    .week-info {
+      font-size: 0.875rem;
+      color: #4b5563;
+      min-width: 140px;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .nav-btn {
+      background: #8b5cf6;
+      border: none;
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      font-size: 1.25rem;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+    }
+
+    .nav-btn:active {
+      transform: scale(0.95);
+      background: #7c3aed;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .kpi-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .kpi-label {
+      font-size: 0.625rem;
+      letter-spacing: 0.1em;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .kpi-value {
+      font-size: 1.75rem;
       font-weight: 700;
-      font-size: 13px;
-      color: #1a1a1a;
-      z-index: 1;
+      color: #1f2937;
+      line-height: 1;
+    }
+
+    .kpi-unit {
+      font-size: 0.875rem;
+      color: #8b5cf6;
+    }
+
+    .habit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .habit-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .habit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .input-time {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid #e5e7eb;
+      color: #8b5cf6;
+      padding: 0.25rem 0;
+      font-size: 0.75rem;
+      font-weight: 600;
+      width: 80px;
+    }
+
+    .input-trigger {
+      background: transparent;
+      border: none;
+      color: #1f2937;
+      font-size: 1.125rem;
+      font-weight: 700;
+      width: 100%;
+      margin-bottom: 0.5rem;
+      padding: 0;
+    }
+
+    .input-action {
+      background: transparent;
+      border: none;
+      color: #4b5563;
+      font-size: 1rem;
+      font-weight: 600;
+      width: 100%;
+      margin-bottom: 1rem;
+      padding: 0;
+    }
+
+    .input-time:focus,
+    .input-trigger:focus,
+    .input-action:focus {
+      outline: none;
+      border-color: #8b5cf6;
     }
 
     .btn-delete {
-      background: #ef4444;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
+      background: transparent;
+      border: 2px solid #fecaca;
+      color: #ef4444;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      font-size: 1.5rem;
+      line-height: 1;
       cursor: pointer;
-      font-size: 13px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-delete:active {
+      background: #fee2e2;
+    }
+
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .day-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .day-label {
+      font-size: 0.625rem;
+      color: #6b7280;
+      text-align: center;
+      letter-spacing: 0.05em;
       font-weight: 600;
+    }
+
+    .day-btn {
+      background: #f3f4f6;
+      border: 2px solid #e5e7eb;
+      color: #d1d5db;
+      padding: 0.75rem 0.25rem;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1.25rem;
+      width: 100%;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
       transition: all 0.2s;
     }
 
-    .btn-delete:hover {
-      background: #dc2626;
-      transform: scale(1.05);
+    .day-btn.done {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border-color: #10b981;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .day-btn.future {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .day-btn.before-created {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .day-btn:active {
+      transform: scale(0.95);
+    }
+
+    .day-btn:disabled {
+      pointer-events: none;
+    }
+
+    .habit-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #6b7280;
+      font-weight: 500;
     }
 
     .btn-add {
-      background: #6366f1;
-      color: white;
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+      color: #fff;
       border: none;
-      padding: 14px 28px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 24px;
-      transition: all 0.2s;
-    }
-
-    .btn-add:hover {
-      background: #4f46e5;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
-
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-    }
-
-    .summary-card {
-      background: white;
-      padding: 24px;
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      text-align: center;
-    }
-
-    .summary-card h3 {
-      margin: 0 0 12px 0;
-      font-size: 14px;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 600;
-    }
-
-    .summary-value {
-      margin: 0;
-      font-size: 36px;
+      padding: 1rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      color: #6366f1;
+      letter-spacing: 0.1em;
+      width: 100%;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
     }
 
-    @media (max-width: 768px) {
+    .btn-add:active {
+      transform: scale(0.98);
+    }
+
+    @media (min-width: 768px) {
       .dashboard {
-        padding: 12px;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
       }
 
-      .header {
-        padding: 16px;
+      .performance-header {
+        padding: 2rem;
       }
 
-      .header h1 {
-        font-size: 22px;
+      .score-value {
+        font-size: 5rem;
       }
 
-      .habit-table th {
-        padding: 12px 8px;
-        font-size: 11px;
+      .kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
       }
 
-      .input-minutes {
-        width: 50px;
-        padding: 6px;
+      .kpi-card {
+        padding: 1.5rem;
+      }
+
+      .kpi-value {
+        font-size: 2.5rem;
+      }
+
+      .habit-card {
+        padding: 1.5rem;
+      }
+
+      .input-trigger {
+        font-size: 1.25rem;
+      }
+
+      .input-action {
+        font-size: 1.125rem;
+      }
+
+      .day-btn {
+        padding: 1rem 0.5rem;
+        font-size: 1.5rem;
       }
     }
   `]
@@ -368,16 +410,16 @@ export class WeeklyDashboardComponent {
   currentWeekStart = signal(this.getMonday(new Date()));
   
   habits = signal<WeeklyHabit[]>([
-    { time: '5:40 AM', trigger: 'After toilet', action: 'I will move for 20 min', days: [20,20,20,20,20,20,20], streak: 10, consistency: 100 },
-    { time: '6:00 AM', trigger: 'After Move', action: 'I will meditate for 20 min', days: [20,20,20,20,20,20,20], streak: 10, consistency: 100 },
-    { time: '6:20 AM', trigger: 'After Meditation', action: 'I will read book for 20 min', days: [20,20,20,20,20,20,20], streak: 10, consistency: 100 },
-    { time: '6:45 AM', trigger: 'After Reading', action: 'I will watch AI Playlist for 45 min', days: [45,45,45,45,45,45,45], streak: 10, consistency: 100 },
-    { time: '7:30 AM', trigger: 'After AI Playlist', action: 'I will make a note of learning', days: [10,10,10,10,10,10,10], streak: 10, consistency: 100 },
-    { time: '7:40 AM', trigger: 'After notes', action: 'I will have morning tea with wife', days: [10,10,10,10,10,10,10], streak: 10, consistency: 100 },
-    { time: '7:50 AM', trigger: 'After tea', action: 'I will take out trash', days: [5,5,5,5,5,5,5], streak: 10, consistency: 100 },
-    { time: '7:55 AM', trigger: 'After putting trash', action: 'I will arrange a dish plate', days: [5,5,5,5,5,5,5], streak: 10, consistency: 100 },
-    { time: '8:00 AM', trigger: 'After arranging dish plate', action: 'I will make a bed', days: [5,5,5,5,5,5,5], streak: 10, consistency: 100 },
-    { time: '8:05 AM', trigger: 'After making bed', action: 'I will put hot water in bucket', days: [5,5,5,5,5,5,5], streak: 10, consistency: 100 }
+    { time: '05:40', trigger: 'After toilet', action: 'I will move for 20 min', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '06:00', trigger: 'After Move', action: 'I will meditate for 20 min', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '06:20', trigger: 'After Meditation', action: 'I will read book for 20 min', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '06:45', trigger: 'After Reading', action: 'I will watch AI Playlist for 45 min', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '07:30', trigger: 'After AI Playlist', action: 'I will make a note of learning', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '07:40', trigger: 'After notes', action: 'I will have morning tea with wife', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '07:50', trigger: 'After tea', action: 'I will take out trash', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '07:55', trigger: 'After putting trash', action: 'I will arrange a dish plate', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '08:00', trigger: 'After arranging dish plate', action: 'I will make a bed', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' },
+    { time: '08:05', trigger: 'After making bed', action: 'I will put hot water in bucket', days: [true,true,true,false,false,false,false], streak: 10, consistency: 100, createdDate: '2024-01-01' }
   ]);
 
   weekDays = computed(() => {
@@ -401,14 +443,21 @@ export class WeeklyDashboardComponent {
 
   totalMinutes = computed(() => {
     return this.habits().reduce((sum, habit) => 
-      sum + habit.days.reduce((a, b) => a + b, 0), 0
+      sum + habit.days.filter(d => d).length, 0
     );
   });
 
   avgConsistency = computed(() => {
     const habits = this.habits();
     if (habits.length === 0) return 0;
-    const total = habits.reduce((sum, h) => sum + h.consistency, 0);
+    const total = habits.reduce((sum, h) => sum + (h.consistency || 0), 0);
+    return Math.round(total / habits.length);
+  });
+
+  avgStreak = computed(() => {
+    const habits = this.habits();
+    if (habits.length === 0) return 0;
+    const total = habits.reduce((sum, h) => sum + this.calculateStreak(h), 0);
     return Math.round(total / habits.length);
   });
 
@@ -432,26 +481,64 @@ export class WeeklyDashboardComponent {
   }
 
   addHabit() {
+    const today = new Date().toISOString().split('T')[0];
     this.habits.update(habits => [...habits, {
       time: '',
       trigger: '',
       action: '',
-      days: [0,0,0,0,0,0,0],
+      days: [false,false,false,false,false,false,false],
       streak: 0,
-      consistency: 0
+      consistency: 0,
+      createdDate: today
     }]);
+  }
+
+  calculateStreak(habit: WeeklyHabit): number {
+    const createdDate = new Date(habit.createdDate);
+    createdDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Calculate days since creation (capped at current week view)
+    const daysSinceCreation = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, daysSinceCreation);
   }
 
   deleteHabit(index: number) {
     this.habits.update(habits => habits.filter((_, i) => i !== index));
   }
 
-  updateMetrics(index: number) {
+  toggleDay(habitIndex: number, dayIndex: number) {
+    const habit = this.habits()[habitIndex];
+    if (this.isFutureDay(dayIndex) || this.isBeforeCreated(habit, dayIndex)) return;
+    
     this.habits.update(habits => {
-      const habit = habits[index];
-      const completedDays = habit.days.filter(d => d > 0).length;
-      habit.consistency = Math.round((completedDays / 7) * 100);
+      const habit = habits[habitIndex];
+      habit.days[dayIndex] = !habit.days[dayIndex];
+      const completedDays = habit.days.filter((d, i) => d && !this.isFutureDay(i)).length;
+      const totalDays = habit.days.filter((_, i) => !this.isFutureDay(i)).length;
+      habit.consistency = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
       return [...habits];
     });
+  }
+
+  isFutureDay(dayIndex: number): boolean {
+    const weekStart = this.currentWeekStart();
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + dayIndex);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dayDate.setHours(0, 0, 0, 0);
+    return dayDate > today;
+  }
+
+  isBeforeCreated(habit: WeeklyHabit, dayIndex: number): boolean {
+    const weekStart = this.currentWeekStart();
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + dayIndex);
+    const createdDate = new Date(habit.createdDate);
+    dayDate.setHours(0, 0, 0, 0);
+    createdDate.setHours(0, 0, 0, 0);
+    return dayDate < createdDate;
   }
 }

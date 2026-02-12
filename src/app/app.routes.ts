@@ -5,19 +5,25 @@ import { inject } from '@angular/core';
 import { FirebaseService } from './core/services/firebase.service';
 import { Router } from '@angular/router';
 
-const authGuard = async () => {
+const authGuard = () => {
   const firebase = inject(FirebaseService);
   const router = inject(Router);
   
-  while (firebase.authLoading()) {
-    await new Promise(resolve => setTimeout(resolve, 50));
-  }
-  
-  if (!firebase.currentUser()) {
-    router.navigate(['/login']);
-    return false;
-  }
-  return true;
+  return new Promise<boolean>((resolve) => {
+    const checkAuth = () => {
+      if (!firebase.authLoading()) {
+        if (firebase.currentUser()) {
+          resolve(true);
+        } else {
+          router.navigate(['/login']);
+          resolve(false);
+        }
+      } else {
+        setTimeout(checkAuth, 50);
+      }
+    };
+    checkAuth();
+  });
 };
 
 export const routes: Routes = [

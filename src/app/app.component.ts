@@ -129,7 +129,11 @@ export class AppComponent {
   ) {}
 
   async signOut() {
-    await this.firebase.signOut();
-    this.router.navigate(['/login']);
+    try {
+      await this.firebase.signOut();
+      this.router.navigate(['/login']);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   }
 }

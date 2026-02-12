@@ -1,12 +1,13 @@
 import { Component, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { FirebaseService } from '../../core/services/firebase.service';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="login-container">
       <div class="login-card">
@@ -14,15 +15,32 @@ import { Router } from '@angular/router';
         <h1>Atomic Habits Tracker</h1>
         <p class="subtitle">Build better habits, one day at a time</p>
         
-        <button class="google-btn" (click)="signIn()" [disabled]="loading">
-          <svg *ngIf="!loading" width="18" height="18" viewBox="0 0 18 18">
-            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-            <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
-            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
-          </svg>
-          <span *ngIf="loading" class="spinner"></span>
-          {{ loading ? 'Signing in...' : 'Sign in with Google' }}
+        <form (ngSubmit)="isSignUp ? signUp() : signIn()">
+          <input 
+            type="email" 
+            [(ngModel)]="email" 
+            name="email"
+            placeholder="Email" 
+            required
+            [disabled]="loading"
+          >
+          <input 
+            type="password" 
+            [(ngModel)]="password" 
+            name="password"
+            placeholder="Password" 
+            required
+            [disabled]="loading"
+          >
+          
+          <button type="submit" [disabled]="loading || !email || !password">
+            <span *ngIf="loading" class="spinner"></span>
+            {{ loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In') }}
+          </button>
+        </form>
+        
+        <button class="toggle-btn" (click)="isSignUp = !isSignUp" [disabled]="loading">
+          {{ isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up' }}
         </button>
         
         <p *ngIf="error" class="error">{{ error }}</p>
@@ -32,7 +50,7 @@ import { Router } from '@angular/router';
   styles: [`
     .login-container {
       min-height: 100vh;
-      min-height: -webkit-fill-available;
+      min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -72,41 +90,74 @@ import { Router } from '@angular/router';
       font-weight: 700;
       color: #111827;
       margin: 0 0 8px 0;
-      line-height: 1.2;
     }
 
     .subtitle {
       font-size: 15px;
       color: #6b7280;
       margin: 0 0 32px 0;
-      line-height: 1.4;
     }
 
-    .google-btn {
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    input {
       width: 100%;
-      padding: 14px 24px;
-      background: white;
+      padding: 14px;
       border: 2px solid #e5e7eb;
       border-radius: 12px;
       font-size: 15px;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    input:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
       font-weight: 600;
-      color: #374151;
+      color: white;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
+      gap: 8px;
       min-height: 52px;
-      -webkit-tap-highlight-color: transparent;
     }
 
-    .google-btn:active:not(:disabled) {
-      transform: scale(0.97);
-      background: #f9fafb;
+    button[type="submit"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
-    .google-btn:disabled {
+    .toggle-btn {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: none;
+      color: #667eea;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .toggle-btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
@@ -114,8 +165,8 @@ import { Router } from '@angular/router';
     .spinner {
       width: 18px;
       height: 18px;
-      border: 2px solid #e5e7eb;
-      border-top-color: #6366f1;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
@@ -132,60 +183,54 @@ import { Router } from '@angular/router';
       border-radius: 8px;
       font-size: 14px;
     }
-
-    @media (min-width: 768px) {
-      .login-card {
-        padding: 48px;
-      }
-
-      h1 {
-        font-size: 28px;
-      }
-
-      .subtitle {
-        font-size: 16px;
-      }
-
-      .google-btn {
-        font-size: 16px;
-      }
-
-      .google-btn:hover:not(:disabled) {
-        background: #f9fafb;
-        border-color: #d1d5db;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      }
-    }
   `]
 })
 export class LoginComponent {
-  loading = false;
+  email = '';
+  password = '';
+  isSignUp = false;
+  loading = this.firebase.authLoading();
   error = '';
 
   constructor(
-    private firebase: FirebaseService,
+    public firebase: FirebaseService,
     private router: Router
   ) {
-    // Auto-navigate when user is authenticated after redirect
     effect(() => {
-      if (this.firebase.currentUser() && !this.firebase.authLoading()) {
+      const user = this.firebase.currentUser();
+      const isLoading = this.firebase.authLoading();
+      
+      this.loading = isLoading;
+      
+      if (!isLoading && user) {
         this.router.navigate(['/']);
+      }
+    });
+
+    effect(() => {
+      const error = this.firebase.authError();
+      if (error) {
+        this.error = error;
+        this.loading = false;
       }
     });
   }
 
   async signIn() {
-    this.loading = true;
     this.error = '';
     try {
-      await this.firebase.signInWithGoogle();
-      // Navigation handled by constructor subscription
-    } catch (error: any) {
-      if (error.code !== 'auth/popup-blocked' && error.code !== 'auth/cancelled-popup-request') {
-        this.error = error.message || 'Failed to sign in. Please try again.';
-      }
-      this.loading = false;
+      await this.firebase.signIn(this.email, this.password);
+    } catch (error) {
+      console.error('Sign in error:', error);
+    }
+  }
+
+  async signUp() {
+    this.error = '';
+    try {
+      await this.firebase.signUp(this.email, this.password);
+    } catch (error) {
+      console.error('Sign up error:', error);
     }
   }
 }

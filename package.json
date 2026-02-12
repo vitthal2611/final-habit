@@ -7,7 +7,8 @@
     "build:prod": "ng build --configuration production --optimization --output-hashing=all --source-map=false",
     "watch": "ng build --watch",
     "test": "echo \"No tests configured\" && exit 0",
-    "lint": "echo \"No linting configured\" && exit 0"
+    "lint": "echo \"No linting configured\" && exit 0",
+    "deploy": "npm run build && firebase deploy --only hosting"
   },
   "dependencies": {
     "@angular/animations": "^16.2.0",
@@ -20,7 +21,7 @@
     "@angular/platform-browser-dynamic": "^16.2.0",
     "@angular/router": "^16.2.0",
     "@angular/service-worker": "^16.2.12",
-    "firebase": "^12.7.0",
+    "firebase": "^10.7.0",
     "rxjs": "^7.8.0",
     "tslib": "^2.6.0",
     "zone.js": "^0.13.0"

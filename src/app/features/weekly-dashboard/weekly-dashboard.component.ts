@@ -2,6 +2,10 @@ import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HabitService } from '../../core/services/habit.service';
+import { TrendChartComponent, HabitTrend } from '../../shared/ui/trend-chart.component';
+import { SparklineComponent } from '../../shared/ui/sparkline.component';
+import { HeatmapComponent, HeatmapDay } from '../../shared/ui/heatmap.component';
+import { BarChartComponent, BarData } from '../../shared/ui/bar-chart.component';
 
 interface WeeklyHabit {
   id: string;
@@ -16,13 +20,14 @@ interface WeeklyHabit {
   streak: number;
   consistency: number;
   createdDate: string;
+  startDate: string;
   frequency: 'daily' | number[];
 }
 
 @Component({
   selector: 'app-weekly-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TrendChartComponent, SparklineComponent, HeatmapComponent, BarChartComponent],
   template: `
     <div class="dashboard">
       <!-- Performance Header -->
@@ -34,6 +39,12 @@ interface WeeklyHabit {
         </div>
         <div class="score-value">{{ currentScore() }}<span class="score-unit">%</span></div>
         <div class="score-label">{{ scoreLabel() }}</div>
+        <div class="score-trend" *ngIf="viewMode() !== 'week'">
+          <span [class.trend-up]="scoreTrend() > 0" [class.trend-down]="scoreTrend() < 0">
+            {{ scoreTrend() > 0 ? '↑' : scoreTrend() < 0 ? '↓' : '→' }} 
+            {{ Math.abs(scoreTrend()) }}% vs previous
+          </span>
+        </div>
         <div class="week-nav" *ngIf="viewMode() === 'week'">
           <button (click)="previousWeek()" class="nav-btn">←</button>
           <div class="week-info">{{ weekRange() }}</div>
@@ -51,19 +62,36 @@ interface WeeklyHabit {
         </div>
       </div>
 
+      <!-- Habit Breakdown Bars -->
+      <div class="chart-section" *ngIf="viewMode() !== 'week'">
+        <div class="section-header" (click)="toggleHabitPerformance()" style="cursor: pointer;">
+          <h3>🎯 Habit Performance {{ showHabitPerformance() ? '▼' : '▶' }}</h3>
+          <p>{{ habitBreakdownInsight() }}</p>
+        </div>
+        <app-bar-chart *ngIf="showHabitPerformance()" [data]="habitBreakdown()"></app-bar-chart>
+      </div>
+
       <!-- KPI Cards -->
-      <div class="kpi-grid">
+      <div class="kpi-grid" [class.extended]="viewMode() !== 'week'">
         <div class="kpi-card">
           <div class="kpi-label">COMPLETED</div>
           <div class="kpi-value">{{ totalCompleted() }}</div>
+          <div class="kpi-change" *ngIf="viewMode() !== 'week'">{{ completedChange() }}</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">HABITS</div>
+          <div class="kpi-label">{{ viewMode() === 'week' ? 'HABITS' : 'ACTIVE' }}</div>
           <div class="kpi-value">{{ habits().length }}</div>
+          <div class="kpi-change" *ngIf="viewMode() !== 'week'">{{ activeHabitsCount() }} active</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">{{ streakLabel() }}</div>
           <div class="kpi-value">{{ avgStreak() }}<span class="kpi-unit">d</span></div>
+          <div class="kpi-change" *ngIf="viewMode() !== 'week'">{{ longestStreak() }}d longest</div>
+        </div>
+        <div class="kpi-card" *ngIf="viewMode() !== 'week'">
+          <div class="kpi-label">BEST DAY</div>
+          <div class="kpi-value">{{ bestDayScore() }}<span class="kpi-unit">%</span></div>
+          <div class="kpi-change">{{ bestDayName() }}</div>
         </div>
       </div>
 
@@ -146,6 +174,11 @@ interface WeeklyHabit {
         {{ showInsights() ? '▼' : '▶' }} Insights
       </button>
 
+      <!-- Download Report Button -->
+      <button class="btn-download" (click)="downloadReport()" *ngIf="viewMode() !== 'week'">
+        📥 Download Report
+      </button>
+
       <!-- Habit Cards -->
       <div class="habit-list">
         <div class="habit-card" 
@@ -195,6 +228,9 @@ interface WeeklyHabit {
               <span class="summary-label">Completed:</span>
               <span class="summary-value">{{ habit.completedCount }} / {{ habit.totalCount }}</span>
             </div>
+            <div class="sparkline-container">
+              <app-sparkline [data]="getHabitTrendData(habit.id)" [color]="getHabitColor(habit.id)"></app-sparkline>
+            </div>
           </div>
 
           <!-- Stats Bar -->
@@ -208,6 +244,10 @@ interface WeeklyHabit {
 
           <!-- Expanded Details -->
           <div class="details-section" *ngIf="expandedHabit() === i">
+            <div class="detail-row">
+              <label>📅 Start Date</label>
+              <input [(ngModel)]="habit.startDate" type="date" (blur)="updateHabit(i)" />
+            </div>
             <div class="detail-row">
               <label>⏰ Time</label>
               <input [(ngModel)]="habit.time" type="time" (blur)="updateHabit(i)" />
@@ -354,6 +394,41 @@ interface WeeklyHabit {
       text-transform: uppercase;
     }
 
+    .score-trend {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .trend-up {
+      color: #10b981;
+    }
+
+    .trend-down {
+      color: #ef4444;
+    }
+
+    .chart-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .section-header {
+      margin-bottom: 0.75rem;
+    }
+
+    .section-header h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin: 0 0 0.25rem 0;
+    }
+
+    .section-header p {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin: 0;
+    }
+
     .week-nav {
       display: flex;
       align-items: center;
@@ -400,6 +475,10 @@ interface WeeklyHabit {
       margin-bottom: 1.5rem;
     }
 
+    .kpi-grid.extended {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
     .kpi-card {
       background: rgba(255, 255, 255, 0.98);
       backdrop-filter: blur(20px);
@@ -435,6 +514,13 @@ interface WeeklyHabit {
     .kpi-unit {
       font-size: 1rem;
       color: #8b5cf6;
+      font-weight: 600;
+    }
+
+    .kpi-change {
+      font-size: 0.7rem;
+      color: #6b7280;
+      margin-top: 0.5rem;
       font-weight: 600;
     }
 
@@ -546,6 +632,14 @@ interface WeeklyHabit {
       justify-content: space-between;
       align-items: center;
       font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .sparkline-container {
+      height: 30px;
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 0.25rem 0.5rem;
     }
 
     .summary-label {
@@ -885,6 +979,25 @@ interface WeeklyHabit {
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     }
 
+    .btn-download {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      width: 100%;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+      transition: all 0.2s;
+    }
+
+    .btn-download:active {
+      transform: scale(0.98);
+    }
+
     .insights-panel {
       display: flex;
       flex-direction: column;
@@ -1089,6 +1202,7 @@ export class WeeklyDashboardComponent {
   currentMonth = signal(new Date());
   currentYear = signal(new Date().getFullYear());
   showInsights = signal(false);
+  showHabitPerformance = signal(true);
   expandedHabit = signal<number | null>(null);
   viewMode = signal<'week' | 'month' | 'year'>('week');
   
@@ -1143,7 +1257,10 @@ export class WeeklyDashboardComponent {
     let totalCompleted = 0;
     
     habits.forEach(habit => {
-      for (let d = new Date(monthStart); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      const startDate = habitStartDate > monthStart ? habitStartDate : monthStart;
+      
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         if (this.habitService.isHabitScheduledForDate(habit, new Date(d))) {
           totalScheduled++;
           const dateStr = d.toISOString().split('T')[0];
@@ -1157,11 +1274,24 @@ export class WeeklyDashboardComponent {
   });
 
   monthlyCompleted = computed(() => {
+    const habits = this.habitService.allHabits();
     const logs = this.habitService.allLogs();
     const month = this.currentMonth();
-    const monthStart = new Date(month.getFullYear(), month.getMonth(), 1).toISOString().split('T')[0];
-    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0).toISOString().split('T')[0];
-    return logs.filter(l => l.completed && l.date >= monthStart && l.date <= monthEnd).length;
+    const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
+    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+    
+    return logs.filter(l => {
+      if (!l.completed) return false;
+      const habit = habits.find(h => h.id === l.habitId);
+      if (!habit) return false;
+      
+      const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      const logDate = new Date(l.date);
+      
+      return l.date >= monthStart.toISOString().split('T')[0] && 
+             l.date <= monthEnd.toISOString().split('T')[0] &&
+             logDate >= habitStartDate;
+    }).length;
   });
 
   yearlyScore = computed(() => {
@@ -1194,11 +1324,24 @@ export class WeeklyDashboardComponent {
   });
 
   yearlyCompleted = computed(() => {
+    const habits = this.habitService.allHabits();
     const logs = this.habitService.allLogs();
     const year = this.currentYear();
-    const yearStart = new Date(year, 0, 1).toISOString().split('T')[0];
-    const yearEnd = new Date(year, 11, 31).toISOString().split('T')[0];
-    return logs.filter(l => l.completed && l.date >= yearStart && l.date <= yearEnd).length;
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31);
+    
+    return logs.filter(l => {
+      if (!l.completed) return false;
+      const habit = habits.find(h => h.id === l.habitId);
+      if (!habit) return false;
+      
+      const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      const logDate = new Date(l.date);
+      
+      return l.date >= yearStart.toISOString().split('T')[0] && 
+             l.date <= yearEnd.toISOString().split('T')[0] &&
+             logDate >= habitStartDate;
+    }).length;
   });
 
   habits = computed(() => {
@@ -1206,7 +1349,23 @@ export class WeeklyDashboardComponent {
     const weekStart = this.currentWeekStart();
     const mode = this.viewMode();
     
-    const mappedHabits = allHabits.map(habit => {
+    // Filter habits based on start date and current view period
+    const filteredHabits = allHabits.filter(habit => {
+      const startDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      
+      if (mode === 'week') {
+        const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+        return startDate <= weekEnd;
+      } else if (mode === 'month') {
+        const monthEnd = new Date(this.currentMonth().getFullYear(), this.currentMonth().getMonth() + 1, 0);
+        return startDate <= monthEnd;
+      } else {
+        const yearEnd = new Date(this.currentYear(), 11, 31);
+        return startDate <= yearEnd;
+      }
+    });
+    
+    const mappedHabits = filteredHabits.map(habit => {
       let days: boolean[];
       let completedDays = 0;
       let totalDays = 0;
@@ -1220,10 +1379,14 @@ export class WeeklyDashboardComponent {
           return this.habitService.getHabitState(habit.id, dateStr) === 'done';
         });
         
+        const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+        
         for (let i = 0; i < 7; i++) {
-          if (this.isFutureDay(i)) continue;
           const date = new Date(weekStart);
           date.setDate(weekStart.getDate() + i);
+          
+          if (this.isFutureDay(i) || date < habitStartDate) continue;
+          
           if (this.habitService.isHabitScheduledForDate(habit, date)) {
             totalDays++;
             if (days[i]) completedDays++;
@@ -1235,13 +1398,15 @@ export class WeeklyDashboardComponent {
         const now = new Date();
         const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
         const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+        const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+        const startDate = habitStartDate > monthStart ? habitStartDate : monthStart;
         const endDate = monthEnd > now ? now : monthEnd;
-        const daysInPeriod = Math.floor((endDate.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const daysInPeriod = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         
         days = [];
         for (let i = 0; i < daysInPeriod; i++) {
-          const date = new Date(monthStart);
-          date.setDate(i + 1);
+          const date = new Date(startDate);
+          date.setDate(startDate.getDate() + i);
           const dateStr = date.toISOString().split('T')[0];
           const isDone = this.habitService.getHabitState(habit.id, dateStr) === 'done';
           days.push(isDone);
@@ -1288,6 +1453,7 @@ export class WeeklyDashboardComponent {
         streak: this.calculateTrueStreak(habit.id),
         consistency,
         createdDate: habit.createdAt ? new Date(habit.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        startDate: habit.startDate || new Date(habit.createdAt).toISOString().split('T')[0],
         frequency: habit.frequency,
         completedCount: completedDays,
         totalCount: totalDays
@@ -1484,6 +1650,100 @@ export class WeeklyDashboardComponent {
     return `At 1% daily improvement: ${current}% → ${projected}% in 1 year (${projected - current}% gain)`;
   });
 
+  trendData = computed((): HabitTrend[] => {
+    const mode = this.viewMode();
+    if (mode === 'week') return [];
+    
+    const habits = this.habitService.allHabits();
+    const logs = this.habitService.allLogs();
+    
+    return habits.map(habit => {
+      const data = mode === 'month' ? this.getMonthlyTrend(habit.id) : this.getYearlyTrend(habit.id);
+      return {
+        habitName: habit.name,
+        color: habit.color,
+        data
+      };
+    });
+  });
+
+  habitTrends = computed((): HabitTrend[] => {
+    return this.trendData();
+  });
+
+  private getMonthlyTrend(habitId: string) {
+    const habit = this.habitService.getHabitById(habitId);
+    if (!habit) return [];
+    
+    const month = this.currentMonth();
+    const logs = this.habitService.allLogs();
+    const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+    const weeks = [];
+    
+    for (let w = 0; w < 4; w++) {
+      const weekStart = new Date(month.getFullYear(), month.getMonth(), 1 + w * 7);
+      const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+      const now = new Date();
+      const endDate = weekEnd > now ? now : weekEnd;
+      
+      let total = 0, completed = 0;
+      
+      for (let d = new Date(weekStart); d <= endDate; d.setDate(d.getDate() + 1)) {
+        if (d < habitStartDate) continue;
+        
+        if (this.habitService.isHabitScheduledForDate(habit, new Date(d))) {
+          total++;
+          const dateStr = d.toISOString().split('T')[0];
+          const log = logs.find(l => l.habitId === habitId && l.date === dateStr);
+          if (log?.completed) completed++;
+        }
+      }
+      
+      weeks.push({
+        label: `W${w + 1}`,
+        value: total > 0 ? Math.round((completed / total) * 100) : 0
+      });
+    }
+    return weeks;
+  }
+
+  private getYearlyTrend(habitId: string) {
+    const habit = this.habitService.getHabitById(habitId);
+    if (!habit) return [];
+    
+    const year = this.currentYear();
+    const logs = this.habitService.allLogs();
+    const months = [];
+    
+    for (let m = 0; m < 12; m++) {
+      const monthStart = new Date(year, m, 1);
+      const monthEnd = new Date(year, m + 1, 0);
+      const now = new Date();
+      if (monthStart > now) break;
+      const endDate = monthEnd > now ? now : monthEnd;
+      
+      const habitStart = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      const startDate = habitStart > monthStart ? habitStart : monthStart;
+      
+      let total = 0, completed = 0;
+      
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        if (this.habitService.isHabitScheduledForDate(habit, new Date(d))) {
+          total++;
+          const dateStr = d.toISOString().split('T')[0];
+          const log = logs.find(l => l.habitId === habitId && l.date === dateStr);
+          if (log?.completed) completed++;
+        }
+      }
+      
+      months.push({
+        label: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][m],
+        value: total > 0 ? Math.round((completed / total) * 100) : 0
+      });
+    }
+    return months;
+  }
+
   getMonday(date: Date): Date {
     const d = new Date(date);
     const day = d.getDay();
@@ -1536,6 +1796,10 @@ export class WeeklyDashboardComponent {
 
   toggleInsights() {
     this.showInsights.set(!this.showInsights());
+  }
+
+  toggleHabitPerformance() {
+    this.showHabitPerformance.set(!this.showHabitPerformance());
   }
 
   toggleExpand(index: number) {
@@ -1605,7 +1869,9 @@ export class WeeklyDashboardComponent {
     const habits = this.habits();
     if (index < 0 || index >= habits.length) return;
     const habit = habits[index];
-    if (habit?.id) {
+    if (!habit?.id) return;
+    
+    if (confirm(`Are you sure you want to delete "${habit.action}"? This action cannot be undone.`)) {
       this.habitService.deleteHabit(habit.id);
     }
   }
@@ -1628,6 +1894,7 @@ export class WeeklyDashboardComponent {
       twoMinuteRule: weeklyHabit.twoMinuteVersion,
       cue: weeklyHabit.cue,
       reward: weeklyHabit.reward,
+      startDate: weeklyHabit.startDate,
       frequency: weeklyHabit.frequency
     };
     
@@ -1663,10 +1930,14 @@ export class WeeklyDashboardComponent {
     const weekStart = this.currentWeekStart();
     const dayDate = new Date(weekStart);
     dayDate.setDate(weekStart.getDate() + dayIndex);
-    const createdDate = new Date(habit.createdDate);
+    
+    const originalHabit = this.habitService.getHabitById(habit.id);
+    if (!originalHabit) return false;
+    
+    const startDate = originalHabit.startDate ? new Date(originalHabit.startDate) : new Date(habit.createdDate);
     dayDate.setHours(0, 0, 0, 0);
-    createdDate.setHours(0, 0, 0, 0);
-    return dayDate < createdDate;
+    startDate.setHours(0, 0, 0, 0);
+    return dayDate < startDate;
   }
 
   isScheduledDay(habit: WeeklyHabit, dayIndex: number): boolean {
@@ -1771,5 +2042,359 @@ export class WeeklyDashboardComponent {
     return habit.frequency !== 'daily' && 
            !this.isWeekdaysOnly(habit) && 
            !this.isWeekendsOnly(habit);
+  }
+
+  getHabitTrendData(habitId: string): number[] {
+    const mode = this.viewMode();
+    if (mode === 'week') return [];
+    return mode === 'month' 
+      ? this.getMonthlyTrend(habitId).map(d => d.value)
+      : this.getYearlyTrend(habitId).map(d => d.value);
+  }
+
+  getHabitColor(habitId: string): string {
+    return this.habitService.getHabitById(habitId)?.color || '#8b5cf6';
+  }
+
+  heatmapDays = computed((): HeatmapDay[] => {
+    const month = this.currentMonth();
+    const habits = this.habitService.allHabits();
+    const logs = this.habitService.allLogs();
+    const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+    const days: HeatmapDay[] = [];
+    
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(month.getFullYear(), month.getMonth(), d);
+      if (date > new Date()) break;
+      
+      const dateStr = date.toISOString().split('T')[0];
+      let total = 0, completed = 0;
+      
+      habits.forEach(habit => {
+        if (this.habitService.isHabitScheduledForDate(habit, date)) {
+          total++;
+          const log = logs.find(l => l.habitId === habit.id && l.date === dateStr);
+          if (log?.completed) completed++;
+        }
+      });
+      
+      days.push({
+        date: dateStr,
+        value: total > 0 ? Math.round((completed / total) * 100) : 0,
+        label: date.toLocaleDateString('default', { month: 'short', day: 'numeric' })
+      });
+    }
+    return days;
+  });
+
+  habitBreakdown = computed((): BarData[] => {
+    const habits = this.habits();
+    return habits.map(h => ({
+      label: h.action,
+      value: h.consistency,
+      color: this.getHabitColor(h.id)
+    })).sort((a, b) => b.value - a.value);
+  });
+
+  Math = Math;
+
+  scoreTrend = computed(() => {
+    const mode = this.viewMode();
+    if (mode === 'week') return 0;
+    
+    const current = this.currentScore();
+    const habits = this.habitService.allHabits();
+    const logs = this.habitService.allLogs();
+    
+    if (mode === 'month') {
+      const prevMonth = new Date(this.currentMonth());
+      prevMonth.setMonth(prevMonth.getMonth() - 1);
+      const prevScore = this.calculatePeriodScore(habits, logs, prevMonth, 'month');
+      return Math.round(current - prevScore);
+    }
+    
+    const prevYear = this.currentYear() - 1;
+    const prevScore = this.calculateYearScore(habits, logs, prevYear);
+    return Math.round(current - prevScore);
+  });
+
+  completedChange = computed(() => {
+    const mode = this.viewMode();
+    if (mode === 'week') return '';
+    
+    const current = this.totalCompleted();
+    const habits = this.habitService.allHabits();
+    const logs = this.habitService.allLogs();
+    
+    if (mode === 'month') {
+      const prevMonth = new Date(this.currentMonth());
+      prevMonth.setMonth(prevMonth.getMonth() - 1);
+      const prev = this.calculatePeriodCompleted(habits, logs, prevMonth, 'month');
+      const diff = current - prev;
+      return diff > 0 ? `+${diff} vs last month` : `${diff} vs last month`;
+    }
+    
+    const prevYear = this.currentYear() - 1;
+    const prev = this.calculateYearCompleted(logs, prevYear);
+    const diff = current - prev;
+    return diff > 0 ? `+${diff} vs last year` : `${diff} vs last year`;
+  });
+
+  activeHabitsCount = computed(() => {
+    return this.habits().filter(h => h.consistency > 0).length;
+  });
+
+  longestStreak = computed(() => {
+    const habits = this.habits();
+    return Math.max(...habits.map(h => h.streak), 0);
+  });
+
+  bestDayScore = computed(() => {
+    const mode = this.viewMode();
+    const habits = this.habitService.allHabits();
+    const logs = this.habitService.allLogs();
+    const dayScores: number[] = [];
+    
+    if (mode === 'month') {
+      const month = this.currentMonth();
+      const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+      
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(month.getFullYear(), month.getMonth(), d);
+        if (date > new Date()) break;
+        dayScores.push(this.calculateDayScore(habits, logs, date));
+      }
+    } else {
+      const year = this.currentYear();
+      for (let m = 0; m < 12; m++) {
+        const monthStart = new Date(year, m, 1);
+        if (monthStart > new Date()) break;
+        const monthEnd = new Date(year, m + 1, 0);
+        const endDate = monthEnd > new Date() ? new Date() : monthEnd;
+        
+        let total = 0, completed = 0;
+        for (let d = new Date(monthStart); d <= endDate; d.setDate(d.getDate() + 1)) {
+          habits.forEach(habit => {
+            if (this.habitService.isHabitScheduledForDate(habit, new Date(d))) {
+              total++;
+              const dateStr = d.toISOString().split('T')[0];
+              const log = logs.find(l => l.habitId === habit.id && l.date === dateStr);
+              if (log?.completed) completed++;
+            }
+          });
+        }
+        dayScores.push(total > 0 ? Math.round((completed / total) * 100) : 0);
+      }
+    }
+    
+    return dayScores.length > 0 ? Math.max(...dayScores) : 0;
+  });
+
+  bestDayName = computed(() => {
+    const mode = this.viewMode();
+    const habits = this.habitService.allHabits();
+    const logs = this.habitService.allLogs();
+    const dayScores: { score: number; label: string }[] = [];
+    
+    if (mode === 'month') {
+      const month = this.currentMonth();
+      const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+      
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(month.getFullYear(), month.getMonth(), d);
+        if (date > new Date()) break;
+        dayScores.push({
+          score: this.calculateDayScore(habits, logs, date),
+          label: date.toLocaleDateString('default', { month: 'short', day: 'numeric' })
+        });
+      }
+    } else {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const year = this.currentYear();
+      
+      for (let m = 0; m < 12; m++) {
+        const monthStart = new Date(year, m, 1);
+        if (monthStart > new Date()) break;
+        const monthEnd = new Date(year, m + 1, 0);
+        const endDate = monthEnd > new Date() ? new Date() : monthEnd;
+        
+        let total = 0, completed = 0;
+        for (let d = new Date(monthStart); d <= endDate; d.setDate(d.getDate() + 1)) {
+          habits.forEach(habit => {
+            if (this.habitService.isHabitScheduledForDate(habit, new Date(d))) {
+              total++;
+              const dateStr = d.toISOString().split('T')[0];
+              const log = logs.find(l => l.habitId === habit.id && l.date === dateStr);
+              if (log?.completed) completed++;
+            }
+          });
+        }
+        dayScores.push({
+          score: total > 0 ? Math.round((completed / total) * 100) : 0,
+          label: months[m]
+        });
+      }
+    }
+    
+    const best = dayScores.reduce((max, curr) => curr.score > max.score ? curr : max, { score: 0, label: '' });
+    return best.label;
+  });
+
+  heatmapInsight = computed(() => {
+    const days = this.heatmapDays();
+    const perfectDays = days.filter(d => d.value === 100).length;
+    const goodDays = days.filter(d => d.value >= 75).length;
+    
+    if (perfectDays > 15) return `🌟 ${perfectDays} perfect days this month!`;
+    if (goodDays > 20) return `💪 ${goodDays} strong days (75%+) this month`;
+    return `${days.filter(d => d.value > 0).length} active days this month`;
+  });
+
+  habitBreakdownInsight = computed(() => {
+    const breakdown = this.habitBreakdown();
+    const top = breakdown[0];
+    const bottom = breakdown[breakdown.length - 1];
+    
+    if (!top) return 'No habits tracked yet';
+    if (top.value === 100) return `🏆 ${top.label} is perfect!`;
+    if (bottom.value < 50) return `🎯 Focus on improving ${bottom.label}`;
+    return `${breakdown.filter(h => h.value >= 80).length} habits above 80%`;
+  });
+
+  private calculateDayScore(habits: any[], logs: any[], date: Date): number {
+    let total = 0, completed = 0;
+    const dateStr = date.toISOString().split('T')[0];
+    
+    habits.forEach(habit => {
+      if (this.habitService.isHabitScheduledForDate(habit, date)) {
+        total++;
+        const log = logs.find(l => l.habitId === habit.id && l.date === dateStr);
+        if (log?.completed) completed++;
+      }
+    });
+    
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  }
+
+  private calculatePeriodScore(habits: any[], logs: any[], date: Date, period: 'month'): number {
+    const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const now = new Date();
+    const endDate = monthEnd > now ? now : monthEnd;
+    
+    let total = 0, completed = 0;
+    
+    habits.forEach(habit => {
+      const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      const startDate = habitStartDate > monthStart ? habitStartDate : monthStart;
+      
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        if (this.habitService.isHabitScheduledForDate(habit, new Date(d))) {
+          total++;
+          const dateStr = d.toISOString().split('T')[0];
+          const log = logs.find(l => l.habitId === habit.id && l.date === dateStr);
+          if (log?.completed) completed++;
+        }
+      }
+    });
+    
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  }
+
+  private calculateYearScore(habits: any[], logs: any[], year: number): number {
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31);
+    const now = new Date();
+    const endDate = yearEnd > now ? now : yearEnd;
+    
+    let total = 0, completed = 0;
+    
+    habits.forEach(habit => {
+      const habitStart = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      const startDate = habitStart > yearStart ? habitStart : yearStart;
+      
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        if (this.habitService.isHabitScheduledForDate(habit, new Date(d))) {
+          total++;
+          const dateStr = d.toISOString().split('T')[0];
+          const log = logs.find(l => l.habitId === habit.id && l.date === dateStr);
+          if (log?.completed) completed++;
+        }
+      }
+    });
+    
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  }
+
+  private calculatePeriodCompleted(habits: any[], logs: any[], date: Date, period: 'month'): number {
+    const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    
+    return logs.filter(l => {
+      if (!l.completed) return false;
+      const habit = habits.find(h => h.id === l.habitId);
+      if (!habit) return false;
+      
+      const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      const logDate = new Date(l.date);
+      
+      return l.date >= monthStart.toISOString().split('T')[0] && 
+             l.date <= monthEnd.toISOString().split('T')[0] &&
+             logDate >= habitStartDate;
+    }).length;
+  }
+
+  private calculateYearCompleted(logs: any[], year: number): number {
+    const habits = this.habitService.allHabits();
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31);
+    
+    return logs.filter(l => {
+      if (!l.completed) return false;
+      const habit = habits.find(h => h.id === l.habitId);
+      if (!habit) return false;
+      
+      const habitStartDate = habit.startDate ? new Date(habit.startDate) : habit.createdAt;
+      const logDate = new Date(l.date);
+      
+      return l.date >= yearStart.toISOString().split('T')[0] && 
+             l.date <= yearEnd.toISOString().split('T')[0] &&
+             logDate >= habitStartDate;
+    }).length;
+  }
+
+  downloadReport() {
+    const mode = this.viewMode();
+    const period = mode === 'month' ? this.monthLabel() : this.currentYear().toString();
+    const habits = this.habits();
+    const breakdown = this.habitBreakdown();
+    
+    let report = `HABIT TRACKER REPORT\n`;
+    report += `Period: ${period}\n`;
+    report += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+    report += `=== SUMMARY ===\n`;
+    report += `Overall Score: ${this.currentScore()}%\n`;
+    report += `Total Completed: ${this.totalCompleted()}\n`;
+    report += `Active Habits: ${this.activeHabitsCount()}\n`;
+    report += `Average Streak: ${this.avgStreak()} days\n`;
+    report += `Longest Streak: ${this.longestStreak()} days\n`;
+    report += `Best Day: ${this.bestDayName()} (${this.bestDayScore()}%)\n\n`;
+    report += `=== HABIT PERFORMANCE ===\n`;
+    breakdown.forEach(h => {
+      report += `${h.label}: ${h.value}% (${habits.find(hab => hab.action === h.label)?.completedCount || 0}/${habits.find(hab => hab.action === h.label)?.totalCount || 0})\n`;
+    });
+    report += `\n=== INSIGHTS ===\n`;
+    report += `${this.habitBreakdownInsight()}\n`;
+    if (this.plateauAlert()) report += `${this.plateauAlert()}\n`;
+    if (this.optimalTime()) report += `${this.optimalTime()}\n`;
+    if (this.compoundEffect()) report += `${this.compoundEffect()}\n`;
+    
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `habit-report-${period.replace(/\s+/g, '-')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }

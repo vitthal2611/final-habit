@@ -1,3 +1,6 @@
+// Firebase API keys are safe to expose in client-side code.
+// They identify your project and are protected by Firebase Security Rules.
+// See FIREBASE_SECURITY.md for details.
 export const environment = {
   production: false,
   firebase: {

@@ -11,6 +11,7 @@ import { ReportComponent } from './features/reports/report.component';
 import { WeeklyReflectionComponent } from './features/weekly-reflection/weekly-reflection.component';
 import { LoginComponent } from './features/login/login.component';
 import { HabitCardDemoComponent } from './features/habit-card-demo/habit-card-demo.component';
+import { WeeklyDashboardComponent } from './features/weekly-dashboard/weekly-dashboard.component';
 import { inject } from '@angular/core';
 import { FirebaseService } from './core/services/firebase.service';
 import { Router } from '@angular/router';
@@ -43,5 +44,6 @@ export const routes: Routes = [
   { path: 'tips', component: TipsComponent, canActivate: [authGuard] },
   { path: 'environment', component: EnvironmentComponent, canActivate: [authGuard] },
   { path: 'report', component: ReportComponent, canActivate: [authGuard] },
-  { path: 'reflection', component: WeeklyReflectionComponent, canActivate: [authGuard] }
+  { path: 'reflection', component: WeeklyReflectionComponent, canActivate: [authGuard] },
+  { path: 'weekly', component: WeeklyDashboardComponent, canActivate: [authGuard] }
 ];

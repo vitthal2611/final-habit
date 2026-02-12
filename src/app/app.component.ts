@@ -28,6 +28,9 @@ import { InstallButtonComponent } from './shared/components/install-button.compo
         <a routerLink="/reflection" routerLinkActive="active">
           Reflection
         </a>
+        <a routerLink="/weekly" routerLinkActive="active">
+          Weekly
+        </a>
         <a routerLink="/identity" routerLinkActive="active">
           Identity
         </a>
